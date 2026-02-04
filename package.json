@@ -1,0 +1,49 @@
+{
+  "name": "bolaoamigos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de bolões esportivos para apostas entre amigos",
+  "author": "Bolão do Chuveiro Ligado",
+  "license": "MIT",
+  "packageManager": "npm@10.2.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=web",
+    "dev:api": "turbo run dev --filter=api",
+    "build": "turbo run build",
+    "build:web": "turbo run build --filter=web",
+    "build:api": "turbo run build --filter=api",
+    "start": "turbo run start",
+    "start:web": "turbo run start --filter=web",
+    "start:api": "turbo run start --filter=api",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "test:api": "turbo run test --filter=api",
+    "test:e2e": "turbo run test:e2e",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "npm run generate --workspace=database",
+    "db:push": "npm run push --workspace=database",
+    "db:migrate": "npm run migrate --workspace=database",
+    "db:studio": "npm run studio --workspace=database",
+    "db:seed": "npm run seed --workspace=database",
+    "db:reset": "npm run reset --workspace=database",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "prepare": "husky install || true"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "husky": "^8.0.0",
+    "prettier": "^3.1.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0"
+  }
+}

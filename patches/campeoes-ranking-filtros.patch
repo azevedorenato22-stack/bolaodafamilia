@@ -1,0 +1,561 @@
+diff --git a/apps/api/src/modules/campeoes/campeoes.service.ts b/apps/api/src/modules/campeoes/campeoes.service.ts
+index 301615e..765b974 100644
+--- a/apps/api/src/modules/campeoes/campeoes.service.ts
++++ b/apps/api/src/modules/campeoes/campeoes.service.ts
+@@ -17,6 +17,22 @@ import { TipoUsuario } from '@prisma/client';
+ export class CampeoesService {
+   constructor(private prisma: PrismaService) {}
+ 
++  private computeCampeaoStatus(campeao: {
++    dataLimite: Date;
++    resultadoFinalId?: string | null;
++  }) {
++    if (campeao.resultadoFinalId) {
++      return { status: 'RESULTADO_DEFINIDO' as const, bloqueado: true };
++    }
++
++    const now = new Date();
++    if (now > campeao.dataLimite) {
++      return { status: 'PRAZO_ENCERRADO' as const, bloqueado: true };
++    }
++
++    return { status: 'ABERTO' as const, bloqueado: false };
++  }
++
+   private async ensureBolao(bolaoId: string) {
+     const bolao = await this.prisma.bolao.findUnique({ where: { id: bolaoId } });
+     if (!bolao) throw new NotFoundException('Bolão não encontrado');
+@@ -102,7 +118,7 @@ export class CampeoesService {
+ 
+   async findAllByBolao(bolaoId: string) {
+     await this.ensureBolao(bolaoId);
+-    return this.prisma.campeao.findMany({
++    const campeoes = await this.prisma.campeao.findMany({
+       where: { bolaoId },
+       orderBy: { dataLimite: 'asc' },
+       include: {
+@@ -114,6 +130,11 @@ export class CampeoesService {
+         },
+       },
+     });
++
++    return campeoes.map(c => ({
++      ...c,
++      ...this.computeCampeaoStatus(c),
++    }));
+   }
+ 
+   async findById(id: string) {
+@@ -132,7 +153,10 @@ export class CampeoesService {
+       },
+     });
+     if (!campeao) throw new NotFoundException('Campeão não encontrado');
+-    return campeao;
++    return {
++      ...campeao,
++      ...this.computeCampeaoStatus(campeao),
++    };
+   }
+ 
+   async update(id: string, dto: UpdateCampeaoDto) {
+diff --git a/apps/api/src/modules/ranking/ranking.service.ts b/apps/api/src/modules/ranking/ranking.service.ts
+index 6069154..8ffe7a5 100644
+--- a/apps/api/src/modules/ranking/ranking.service.ts
++++ b/apps/api/src/modules/ranking/ranking.service.ts
+@@ -1,4 +1,4 @@
+-import { Injectable, NotFoundException } from '@nestjs/common';
++import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+ import { PrismaService } from '../../prisma/prisma.service';
+ 
+ type RankingFilters = {
+@@ -26,6 +26,29 @@ type RankingRow = {
+ export class RankingService {
+   constructor(private prisma: PrismaService) {}
+ 
++  private parseDateOnlyToLocalRange(data?: string) {
++    if (!data) return null;
++    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data);
++    if (!match) return null;
++    const year = Number(match[1]);
++    const month = Number(match[2]);
++    const day = Number(match[3]);
++    if (
++      !Number.isFinite(year) ||
++      !Number.isFinite(month) ||
++      !Number.isFinite(day) ||
++      month < 1 ||
++      month > 12 ||
++      day < 1 ||
++      day > 31
++    ) {
++      return null;
++    }
++    const start = new Date(year, month - 1, day, 0, 0, 0, 0);
++    const end = new Date(year, month - 1, day, 23, 59, 59, 999);
++    return { start, end };
++  }
++
+   private ordenar(rows: RankingRow[]) {
+     return rows
+       .sort((a, b) => {
+@@ -71,6 +94,16 @@ export class RankingService {
+     });
+     if (!bolao) throw new NotFoundException('Bolão não encontrado');
+ 
++    if (rodadaId) {
++      const vinculo = await this.prisma.bolaoRodada.findFirst({
++        where: { bolaoId, rodadaId },
++        select: { rodadaId: true },
++      });
++      if (!vinculo) {
++        throw new BadRequestException('Rodada não pertence ao bolão');
++      }
++    }
++
+     const participantes = await this.prisma.bolaoUsuario.findMany({
+       where: {
+         bolaoId,
+@@ -87,15 +120,15 @@ export class RankingService {
+     const usuarios = participantes.map(p => p.usuario);
+     const participantesIds = usuarios.map(u => u.id);
+ 
+-    const dateFilter =
+-      data && !Number.isNaN(new Date(data).getTime())
+-        ? {
+-            dataHora: {
+-              gte: new Date(new Date(data).setHours(0, 0, 0, 0)),
+-              lte: new Date(new Date(data).setHours(23, 59, 59, 999)),
+-            },
+-          }
+-        : {};
++    const dateRange = this.parseDateOnlyToLocalRange(data);
++    const dateFilter = dateRange
++      ? {
++          dataHora: {
++            gte: dateRange.start,
++            lte: dateRange.end,
++          },
++        }
++      : {};
+ 
+     const palpitesJogos = await this.prisma.palpite.findMany({
+       where: {
+diff --git a/apps/web/src/app/(user)/campeoes/page.tsx b/apps/web/src/app/(user)/campeoes/page.tsx
+index 5a4f467..281ba9a 100644
+--- a/apps/web/src/app/(user)/campeoes/page.tsx
++++ b/apps/web/src/app/(user)/campeoes/page.tsx
+@@ -19,6 +19,8 @@ type PalpiteCampeao = {
+   pontuacao?: number | null;
+ };
+ 
++type CampeaoStatus = 'ABERTO' | 'PRAZO_ENCERRADO' | 'RESULTADO_DEFINIDO';
++
+ export default function CampeoesPage() {
+   useProtectedPage({ roles: ['USUARIO'] });
+   const { user } = useAuth();
+@@ -142,23 +144,23 @@ export default function CampeoesPage() {
+ 
+       <div className="space-y-4">
+         {campeoes.map(c => {
+-          const prazoEncerrado = new Date() > new Date(c.dataLimite);
+           const palpite = c.meuPalpite as PalpiteCampeao | undefined;
+           const selectedTimeId = palpite?.timeEscolhidoId || palpite?.timeEscolhido?.id || '';
+-          const bloqueado = prazoEncerrado || !!c.resultadoFinal; // bloqueia após prazo ou resultado definido
+-          const resultadoDefinido = Boolean(c.resultadoFinal);
+-          const badgeLabel = resultadoDefinido
++          const status = (c.status as CampeaoStatus | undefined) ?? 'ABERTO';
++          const bloqueado = typeof c.bloqueado === 'boolean' ? c.bloqueado : status !== 'ABERTO';
++          const resultadoDefinido = status === 'RESULTADO_DEFINIDO';
++          const badgeLabel = status === 'RESULTADO_DEFINIDO'
+             ? 'Resultado definido'
+-            : prazoEncerrado
++            : status === 'PRAZO_ENCERRADO'
+             ? 'Prazo encerrado'
+             : 'Aberto para palpites';
+-          const badgeColor = resultadoDefinido
++          const badgeColor = status === 'RESULTADO_DEFINIDO'
+             ? 'bg-emerald-50 text-emerald-700'
+-            : prazoEncerrado
++            : status === 'PRAZO_ENCERRADO'
+             ? 'bg-gray-100 text-gray-700'
+             : 'bg-blue-50 text-blue-700';
+           const mostrarPalpites =
+-            resultadoDefinido || prazoEncerrado; // após prazo ou resultado, mostrar todos
++            status !== 'ABERTO'; // após prazo ou resultado, mostrar todos
+           return (
+             <div key={c.id} className="border border-gray-200 rounded-xl bg-white p-4 shadow-sm">
+               <div className="flex items-center justify-between">
+diff --git a/apps/web/src/app/(user)/ranking/page.tsx b/apps/web/src/app/(user)/ranking/page.tsx
+index bb08d23..9511527 100644
+--- a/apps/web/src/app/(user)/ranking/page.tsx
++++ b/apps/web/src/app/(user)/ranking/page.tsx
+@@ -6,7 +6,6 @@ import { useProtectedPage } from '../../providers';
+ import { rankingGeral } from '../../../services/ranking.service';
+ import { listarBoloesAtivos, listarMeusBoloes } from '../../../services/boloes.service';
+ import { ExtratoModal } from '../../../components/extrato-modal';
+-import { listarRodadas } from '../../../services/rodadas.service';
+ 
+ export default function RankingPage() {
+   const { user } = useProtectedPage({ roles: ['USUARIO', 'ADMIN'] });
+@@ -15,33 +14,36 @@ export default function RankingPage() {
+   const [erro, setErro] = useState<string | null>(null);
+   const [semBoloes, setSemBoloes] = useState(false);
+   const [bolaoId, setBolaoId] = useState<string>('');
++  const [appliedBolaoId, setAppliedBolaoId] = useState<string>('');
+   const [boloesch, setBoloes] = useState<any[]>([]);
+   const [usuarioExtrato, setUsuarioExtrato] = useState<string | null>(null);
+-  const [rodadas, setRodadas] = useState<any[]>([]);
+   const [filtros, setFiltros] = useState({ rodadaId: '', status: '', data: '' });
+-  const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
++  const [appliedFiltros, setAppliedFiltros] = useState({ rodadaId: '', status: '', data: '' });
+ 
+   useEffect(() => {
+     async function load() {
+       if (!user) return;
+       setLoading(true);
+       try {
+-        const [boloesAtivos, rod] = await Promise.all([
+-          user.tipo === 'USUARIO' ? listarMeusBoloes() : listarBoloesAtivos(),
+-          listarRodadas(),
+-        ]);
++        const boloesAtivos =
++          user.tipo === 'USUARIO' ? await listarMeusBoloes() : await listarBoloesAtivos();
+         setBoloes(boloesAtivos);
+-        setRodadas(rod);
+         const selected = boloesAtivos[0]?.id;
+         if (selected) {
+           setSemBoloes(false);
+           setErro(null);
+           setBolaoId(selected);
+-          const r = await rankingGeral(selected, filtros);
++          // carrega ranking padrão (ENCERRADO) no primeiro bolão
++          const base = { rodadaId: '', status: '', data: '' };
++          setFiltros(base);
++          setAppliedFiltros(base);
++          setAppliedBolaoId(selected);
++          const r = await rankingGeral(selected, base);
+           setRanking(r);
+         } else {
+           setRanking([]);
+           setBolaoId('');
++          setAppliedBolaoId('');
+           if (user.tipo === 'USUARIO') {
+             setSemBoloes(true);
+             setErro(null);
+@@ -60,21 +62,13 @@ export default function RankingPage() {
+     load();
+   }, [user?.tipo]);
+ 
+-  // Atualização automática (polling a cada 30s)
+-  useEffect(() => {
+-    if (!bolaoId) return;
+-    if (timer) clearInterval(timer);
+-    const newTimer = setInterval(async () => {
+-      try {
+-        const r = await rankingGeral(bolaoId, filtros);
+-        setRanking(r);
+-      } catch {
+-        // ignore
+-      }
+-    }, 30000);
+-    setTimer(newTimer);
+-    return () => clearInterval(newTimer);
+-  }, [bolaoId, filtros]);
++  const bolaoSelecionado = boloesch.find(b => b.id === bolaoId);
++  const rodadas = (bolaoSelecionado?.rodadas ?? []).slice().sort((a: any, b: any) => {
++    const aOrd = a.numeroOrdem ?? 0;
++    const bOrd = b.numeroOrdem ?? 0;
++    if (aOrd !== bOrd) return aOrd - bOrd;
++    return String(a.nome).localeCompare(String(b.nome));
++  });
+ 
+   return (
+     <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
+@@ -91,15 +85,13 @@ export default function RankingPage() {
+               onChange={async e => {
+                 const id = e.target.value;
+                 setBolaoId(id);
+-                setLoading(true);
+-                try {
+-                  const r = await rankingGeral(id, filtros);
+-                  setRanking(r);
+-                } catch {
+-                  setErro('Falha ao carregar ranking.');
+-                } finally {
+-                  setLoading(false);
+-                }
++                setErro(null);
++                setUsuarioExtrato(null);
++                setRanking([]);
++                setAppliedBolaoId('');
++                const base = { rodadaId: '', status: '', data: '' };
++                setFiltros(base);
++                setAppliedFiltros(base);
+               }}
+             >
+               {boloesch.map(b => (
+@@ -114,7 +106,7 @@ export default function RankingPage() {
+               onChange={e => setFiltros({ ...filtros, rodadaId: e.target.value })}
+             >
+               <option value="">Todas as rodadas</option>
+-              {rodadas.map(r => (
++              {rodadas.map((r: any) => (
+                 <option key={r.id} value={r.id}>
+                   {r.nome}
+                 </option>
+@@ -125,8 +117,8 @@ export default function RankingPage() {
+               value={filtros.status}
+               onChange={e => setFiltros({ ...filtros, status: e.target.value })}
+             >
+-              <option value="">Todos status</option>
+-              <option value="PALPITES">A realizar</option>
++              <option value="">Encerrados (padrão)</option>
++              <option value="PALPITES">Palpites</option>
+               <option value="EM_ANDAMENTO">Em andamento</option>
+               <option value="ENCERRADO">Encerrados</option>
+             </select>
+@@ -139,12 +131,28 @@ export default function RankingPage() {
+             <button
+               className="px-3 py-2 text-sm bg-primary-600 text-white rounded-lg"
+               onClick={async () => {
++                if (!bolaoId) {
++                  setErro('Selecione um bolão.');
++                  return;
++                }
+                 setLoading(true);
++                setErro(null);
+                 try {
+-                  const r = await rankingGeral(bolaoId, filtros);
++                  const payload = {
++                    rodadaId: filtros.rodadaId,
++                    status: filtros.status,
++                    data: filtros.data,
++                  };
++                  const r = await rankingGeral(bolaoId, payload);
+                   setRanking(r);
+-                } catch {
+-                  setErro('Falha ao carregar ranking.');
++                  setAppliedBolaoId(bolaoId);
++                  setAppliedFiltros(payload);
++                } catch (err: any) {
++                  const msg =
++                    err?.response?.data?.message ||
++                    err?.message ||
++                    'Falha ao carregar ranking.';
++                  setErro(Array.isArray(msg) ? msg.join(', ') : msg);
+                 } finally {
+                   setLoading(false);
+                 }
+@@ -155,13 +163,25 @@ export default function RankingPage() {
+             <button
+               className="px-3 py-2 text-sm border border-gray-200 rounded-lg"
+               onClick={async () => {
++                if (!bolaoId) {
++                  setErro('Selecione um bolão.');
++                  return;
++                }
++                const base = { rodadaId: '', status: '', data: '' };
++                setFiltros(base);
++                setAppliedFiltros(base);
+                 setLoading(true);
+-                setFiltros({ rodadaId: '', status: '', data: '' });
++                setErro(null);
+                 try {
+-                  const r = await rankingGeral(bolaoId, {});
++                  const r = await rankingGeral(bolaoId, base);
+                   setRanking(r);
+-                } catch {
+-                  setErro('Falha ao carregar ranking.');
++                  setAppliedBolaoId(bolaoId);
++                } catch (err: any) {
++                  const msg =
++                    err?.response?.data?.message ||
++                    err?.message ||
++                    'Falha ao carregar ranking.';
++                  setErro(Array.isArray(msg) ? msg.join(', ') : msg);
+                 } finally {
+                   setLoading(false);
+                 }
+@@ -185,48 +205,71 @@ export default function RankingPage() {
+           </p>
+         </div>
+       )}
+-      <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl shadow-sm">
+-        <table className="min-w-full text-sm">
+-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-600">
+-            <tr>
+-              <th className="px-4 py-3">Pos</th>
+-              <th className="px-4 py-3">Usuário</th>
+-              <th className="px-4 py-3">Pontos</th>
+-              <th className="px-4 py-3">Campeões</th>
+-              <th className="px-4 py-3">PC</th>
+-              <th className="px-4 py-3">PV</th>
+-              <th className="px-4 py-3">DG</th>
+-              <th className="px-4 py-3">PP</th>
+-              <th className="px-4 py-3">V</th>
+-            </tr>
+-          </thead>
+-          <tbody className="divide-y divide-gray-100">
+-            {ranking.map(row => (
+-              <tr
+-                key={row.usuarioId}
+-                className="hover:bg-gray-50 cursor-pointer"
+-                onClick={() => setUsuarioExtrato(row.usuarioId)}
+-              >
+-                <td className="px-4 py-3 font-semibold">{row.posicao}</td>
+-                <td className="px-4 py-3">{row.nome}</td>
+-                <td className="px-4 py-3 font-semibold text-primary-700">{row.pontosTotal}</td>
+-                <td className="px-4 py-3">{row.pontosCampeao}</td>
+-                <td className="px-4 py-3">{row.pc}</td>
+-                <td className="px-4 py-3">{row.pv}</td>
+-                <td className="px-4 py-3">{row.dg}</td>
+-                <td className="px-4 py-3">{row.pp}</td>
+-                <td className="px-4 py-3">{row.v}</td>
+-              </tr>
+-            ))}
+-          </tbody>
+-        </table>
+-      </div>
+-      <ExtratoModal
+-        bolaoId={bolaoId}
+-        usuarioId={usuarioExtrato}
+-        filters={filtros}
+-        onClose={() => setUsuarioExtrato(null)}
+-      />
++      {!bolaoId && !semBoloes && (
++        <div className="rounded-xl border border-dashed border-gray-300 p-4 bg-white">
++          <p className="text-sm text-gray-700">Selecione um bolão para ver o ranking.</p>
++        </div>
++      )}
++      {bolaoId && !appliedBolaoId && (
++        <div className="rounded-xl border border-dashed border-gray-300 p-4 bg-white">
++          <p className="text-sm text-gray-700">
++            Selecione os filtros e clique em <span className="font-semibold">Aplicar filtros</span>.
++          </p>
++        </div>
++      )}
++      {bolaoId && appliedBolaoId && (
++        <>
++          <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl shadow-sm">
++            <table className="min-w-full text-sm">
++              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-600">
++                <tr>
++                  <th className="px-4 py-3">Pos</th>
++                  <th className="px-4 py-3">Usuário</th>
++                  <th className="px-4 py-3">Pontos</th>
++                  <th className="px-4 py-3">Campeões</th>
++                  <th className="px-4 py-3">PC</th>
++                  <th className="px-4 py-3">PV</th>
++                  <th className="px-4 py-3">DG</th>
++                  <th className="px-4 py-3">PP</th>
++                  <th className="px-4 py-3">V</th>
++                </tr>
++              </thead>
++              <tbody className="divide-y divide-gray-100">
++                {ranking.map(row => (
++                  <tr
++                    key={row.usuarioId}
++                    className="hover:bg-gray-50 cursor-pointer"
++                    onClick={() => setUsuarioExtrato(row.usuarioId)}
++                  >
++                    <td className="px-4 py-3 font-semibold">{row.posicao}</td>
++                    <td className="px-4 py-3">{row.nome}</td>
++                    <td className="px-4 py-3 font-semibold text-primary-700">{row.pontosTotal}</td>
++                    <td className="px-4 py-3">{row.pontosCampeao}</td>
++                    <td className="px-4 py-3">{row.pc}</td>
++                    <td className="px-4 py-3">{row.pv}</td>
++                    <td className="px-4 py-3">{row.dg}</td>
++                    <td className="px-4 py-3">{row.pp}</td>
++                    <td className="px-4 py-3">{row.v}</td>
++                  </tr>
++                ))}
++                {ranking.length === 0 && (
++                  <tr>
++                    <td className="px-4 py-6 text-sm text-gray-600" colSpan={9}>
++                      Nenhum dado para os filtros selecionados.
++                    </td>
++                  </tr>
++                )}
++              </tbody>
++            </table>
++          </div>
++          <ExtratoModal
++            bolaoId={appliedBolaoId}
++            usuarioId={usuarioExtrato}
++            filters={appliedFiltros}
++            onClose={() => setUsuarioExtrato(null)}
++          />
++        </>
++      )}
+     </div>
+   );
+ }
+diff --git a/apps/web/src/app/admin/campeoes/page.tsx b/apps/web/src/app/admin/campeoes/page.tsx
+index e97247d..6f4f1f4 100644
+--- a/apps/web/src/app/admin/campeoes/page.tsx
++++ b/apps/web/src/app/admin/campeoes/page.tsx
+@@ -32,6 +32,21 @@ export default function AdminCampeoesPage() {
+   const [confirmId, setConfirmId] = useState<string | null>(null);
+   const [palpites, setPalpites] = useState<Record<string, any[]>>({});
+ 
++  const formatDateTimeLocal = (value: string | Date) => {
++    const date = value instanceof Date ? value : new Date(value);
++    if (Number.isNaN(date.getTime())) return '';
++    const offset = date.getTimezoneOffset();
++    const local = new Date(date.getTime() - offset * 60000);
++    return local.toISOString().slice(0, 16);
++  };
++
++  const toIsoFromLocalInput = (value: string) => {
++    if (!value) return value;
++    const date = new Date(value);
++    if (Number.isNaN(date.getTime())) return value;
++    return date.toISOString();
++  };
++
+   const load = async (id: string, bolaoSelecionado?: any) => {
+     if (!id) return;
+     setErro(null);
+@@ -83,7 +98,7 @@ export default function AdminCampeoesPage() {
+         await atualizarCampeao(editingId, {
+           nome: form.nome,
+           descricao: form.descricao,
+-          dataLimite: form.dataLimite,
++          dataLimite: toIsoFromLocalInput(form.dataLimite),
+           pontuacao: form.pontuacao,
+         });
+       } else {
+@@ -91,7 +106,7 @@ export default function AdminCampeoesPage() {
+           bolaoId,
+           nome: form.nome,
+           descricao: form.descricao,
+-          dataLimite: form.dataLimite,
++          dataLimite: toIsoFromLocalInput(form.dataLimite),
+           pontuacao: form.pontuacao,
+         });
+       }
+@@ -243,15 +258,15 @@ export default function AdminCampeoesPage() {
+                     className="text-primary-700 hover:text-primary-800"
+                     onClick={() => {
+                       setEditingId(c.id);
+-                      setForm({
+-                        nome: c.nome,
+-                        descricao: c.descricao ?? '',
+-                        dataLimite: c.dataLimite?.slice(0, 16) ?? '',
+-                        pontuacao: c.pontuacao ?? c.bolao?.ptsCampeao ?? 20,
+-                      });
+-                    }}
+-                  >
+-                    Editar
++                    setForm({
++                      nome: c.nome,
++                      descricao: c.descricao ?? '',
++                      dataLimite: formatDateTimeLocal(c.dataLimite),
++                      pontuacao: c.pontuacao ?? c.bolao?.ptsCampeao ?? 20,
++                    });
++                  }}
++                >
++                  Editar
+                   </button>
+                   <button
+                     className="text-red-600 hover:text-red-700"

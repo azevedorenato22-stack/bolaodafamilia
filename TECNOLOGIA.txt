@@ -1,0 +1,28 @@
+# Análise Tecnológica do Projeto
+
+## Estrutura do Projeto
+O projeto é um **Monorepo** gerenciado pelo **TurboRepo**.
+
+## Tecnologias Identificadas
+
+### Frontend (`apps/web`)
+-   **Framework**: Next.js 14
+-   **Linguagem**: TypeScript
+-   **Estilização**: Tailwind CSS
+-   **Componentes**: React 18
+
+### Backend (`apps/api`)
+-   **Framework**: NestJS 10
+-   **Linguagem**: TypeScript
+-   **Plataforma**: Node.js
+-   **Banco de Dados**: PostgreSQL (via Prisma ORM)
+-   **Autenticação**: JWT (Passport)
+
+### Infraestrutura & Ferramentas
+-   **Gerenciador de Pacotes**: npm
+-   **Build System**: TurboRepo
+-   **ORM**: Prisma
+-   **Containerização**: Docker (arquivos presentes, mas foco em Serverless para Vercel)
+
+## Adaptações para Produção
+Para rodar na Vercel (ambiente Serverless), o NestJS foi adaptado para inicializar como uma função serverless (`express`), removendo a dependência de uma porta fixa constante.

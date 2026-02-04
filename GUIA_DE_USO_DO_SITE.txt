@@ -1,0 +1,205 @@
+GUIA DE USO (INICIANTE) — BOLÃO DO CHUVEIRO LIGADO
+==================================================
+
+Este guia explica como usar o site (para participantes e administradores) e, no fim, traz uma lista de comandos para rodar o projeto no computador.
+
+
+1) O QUE É O SISTEMA (RÁPIDO)
+-----------------------------
+- “Bolão” = um campeonato/torneio (ou conjunto de jogos) com regras de pontuação.
+- “Rodada” = agrupamento de jogos (ex.: Rodada 1, Oitavas, Semifinal).
+- “Jogo” = partida entre Time Casa x Time Fora, com data e status.
+- “Palpite” = seu placar previsto para um jogo.
+- “Campeão” = seu palpite de campeão (categoria definida pelo admin) que vale pontos extras.
+- “Ranking” = classificação automática por pontos e critérios de desempate.
+
+
+2) MAPA DO SITE (TELAS PRINCIPAIS)
+---------------------------------
+Público (sem login):
+- /            Página inicial (pode exibir “Mensagem do dia”)
+- /login       Entrar no sistema
+- /register    Criar conta
+
+Área do usuário (após login como USUARIO):
+- /dashboard   Jogos + palpites (principal)
+- /boloes      Entrar / sair de bolões
+- /campeoes    Palpite de campeão por bolão
+- /ranking     Ranking (com filtros)
+
+Área do administrador (após login como ADMIN):
+- /admin               Mensagem do dia (publicar/remover)
+- /admin/boloes        Criar/editar bolões e regras de pontuação
+- /admin/times         Cadastrar times
+- /admin/rodadas       Cadastrar rodadas
+- /admin/jogos         Cadastrar/editar jogos e lançar resultados
+- /admin/campeoes      Criar categorias de campeão e definir resultado
+- /admin/usuarios      Gerenciar usuários e admins
+- /admin/ranking       Ver ranking (mesma tela do usuário)
+
+
+3) PRIMEIRO ACESSO (USUÁRIO)
+----------------------------
+Passo a passo:
+1. Abra o site e clique em “Entrar” ou vá em /login.
+2. Se você ainda não tem conta, vá em /register e preencha:
+   - Nome, Usuário, Email, Senha
+3. Ao entrar, você será levado para:
+   - USUARIO  -> /dashboard
+   - ADMIN    -> /admin
+
+Dicas:
+- “Usuário” (campo de login) é o seu “@” (não é o e-mail).
+- Se der erro de login, confirme usuário e senha com atenção (maiúsculas/minúsculas importam).
+
+
+4) ENTRAR EM UM BOLÃO (USUÁRIO)
+-------------------------------
+1. Vá em “Bolões” (/boloes).
+2. Em “Bolões disponíveis”, clique em “Entrar”.
+3. O bolão aparecerá em “Meus bolões”.
+
+Para sair de um bolão:
+- Em “Meus bolões”, clique em “Sair”.
+
+
+5) FAZER PALPITES (USUÁRIO) — TELA “JOGOS”
+-----------------------------------------
+Onde: /dashboard (menu “Jogos”)
+
+Fluxo recomendado:
+1. Selecione um bolão no filtro “Selecione um bolão”.
+2. (Opcional) Use filtros para facilitar:
+   - Status do jogo (PALPITES / EM_ANDAMENTO / ENCERRADO)
+   - Rodada
+   - Data
+   - “Somente futuro” (quando disponível na tela)
+3. Para cada jogo, preencha o placar:
+   - Gols Casa
+   - Gols Fora
+4. Clique para salvar o palpite.
+
+Importante (regras):
+- Bloqueio de palpites: normalmente o sistema bloqueia edição perto do horário do jogo (por padrão, 15 minutos antes).
+- Jogo “mata-mata”: pode haver escolha de vencedor nos pênaltis quando necessário.
+
+Ver palpites de outras pessoas:
+- Alguns cards/telas permitem abrir a lista de palpites do jogo (quando habilitado).
+
+
+6) PALPITE DE CAMPEÃO (USUÁRIO)
+-------------------------------
+Onde: /campeoes (menu “Campeões”)
+
+Como funciona:
+- O admin cria “categorias de campeão” (ex.: “Campeão do torneio”, “Artilheiro”, etc., se aplicável).
+- Cada categoria tem uma “Data limite” e uma pontuação.
+
+Passo a passo:
+1. Selecione o bolão no topo (se você estiver em mais de um).
+2. Em cada categoria, escolha um time na lista “Seu palpite”.
+3. Antes do prazo, você pode alterar.
+4. Depois do prazo (ou quando o resultado for definido), o sistema pode mostrar os palpites de todos.
+
+
+7) RANKING (USUÁRIO E ADMIN)
+----------------------------
+Onde: /ranking (ou /admin/ranking)
+
+Como usar:
+1. Selecione o bolão.
+2. (Opcional) Aplique filtros:
+   - Rodada
+   - Status (padrão costuma ser “Encerrados”)
+   - Data
+3. Clique em “Aplicar filtros”.
+4. Clique em um usuário no ranking para ver o extrato (detalhamento) quando disponível.
+
+Critérios de desempate (na tela):
+- Total (Jogos + Campeões) > Jogos > PC > PV > DG > PP > V
+
+
+8) MENSAGEM DO DIA (ADMIN)
+--------------------------
+Onde: /admin (menu “Mensagem do dia”)
+
+Para publicar:
+1. Preencha (opcional) Título.
+2. Escolha o Tipo (info/alerta/aviso/urgente).
+3. Escreva o Conteúdo.
+4. (Opcional) Defina Início e Fim para exibição.
+5. Clique em “Salvar mensagem”.
+
+Para remover:
+- Clique em “Remover mensagem”.
+
+
+9) ROTINA DO ADMIN (CADASTRO DO CAMPEONATO)
+------------------------------------------
+Ordem sugerida:
+1. Times (/admin/times)
+2. Rodadas (/admin/rodadas)
+3. Bolões (/admin/boloes)
+   - Defina nome, data final e regras de pontuação
+   - Selecione times e rodadas do bolão
+   - (Opcional) selecione participantes
+4. Jogos (/admin/jogos)
+   - Vincule cada jogo a um bolão e rodada
+   - Defina data/hora e se é mata-mata
+5. Campeões (/admin/campeoes)
+   - Crie categorias e prazos
+   - Defina o resultado quando souber (isso recalcula pontuações)
+
+Lançar resultados de jogos:
+- Em /admin/jogos, edite o jogo e informe “resultadoCasa/resultadoFora” e status “ENCERRADO” (e pênaltis se aplicável).
+
+Observação:
+- Algumas ações sensíveis (como excluir) podem pedir confirmação/senha do admin.
+
+
+10) PROBLEMAS COMUNS (CHECKLIST RÁPIDO)
+---------------------------------------
+- “Não consigo salvar palpite”: verifique se o jogo está bloqueado (horário muito próximo) ou se você selecionou o bolão correto.
+- “Não aparece bolão para mim”: entre em /boloes e clique em “Entrar” nos bolões disponíveis.
+- “Ranking vazio”: troque o filtro de status para “ENCERRADO” e clique “Aplicar filtros”; sem jogos encerrados pode ficar vazio.
+- “Erro ao entrar/cadastrar”: confira se “Usuário” e “Email” são únicos; tente outro usuário se já existir.
+- “O site voltou sozinho para a página inicial”: pode acontecer após alguns minutos de inatividade; ao interagir novamente, a sessão permanece.
+
+
+11) COMANDOS (PARA RODAR O SITE NO COMPUTADOR)
+----------------------------------------------
+Pré-requisitos: Node.js 18+, PostgreSQL 15+
+
+Instalação e configuração (na raiz do projeto):
+1) Copiar variáveis de ambiente
+   cp .env.example .env
+
+2) Instalar dependências
+   npm install
+
+3) Preparar banco (PostgreSQL) e sincronizar schema
+   npm run db:push
+
+4) (Opcional) Popular com dados iniciais
+   npm run db:seed
+
+Rodar em desenvolvimento:
+- Front + API juntos:
+  npm run dev
+
+- Só o site (web):
+  npm run dev:web
+
+- Só a API:
+  npm run dev:api
+
+Ferramentas úteis:
+- Prisma Studio (visualizar/editar dados):
+  npm run db:studio
+
+- Gerar Prisma Client:
+  npm run db:generate
+
+URLs locais padrão:
+- Web: http://localhost:3000
+- API: http://localhost:3001 (rotas sob /api)

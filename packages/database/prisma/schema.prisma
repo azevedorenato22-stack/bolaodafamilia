@@ -1,0 +1,425 @@
+// ============================================
+// BOLÃO DOS AMIGOS - Schema Prisma
+// ============================================
+// Banco de dados: PostgreSQL
+// ORM: Prisma
+// Versão: 1.0.0
+// Última atualização: 15/12/2025
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+// Define tipos enumerados usados em todo o schema
+
+/// Tipo de usuário do sistema
+enum TipoUsuario {
+  ADMIN    // Administrador: acesso total ao sistema
+  USUARIO  // Usuário comum: pode fazer palpites e ver ranking
+}
+
+/// Status do jogo no ciclo de vida
+enum StatusJogo {
+  PALPITES      // Aberto para palpites (antes do jogo)
+  EM_ANDAMENTO  // Em andamento (palpites bloqueados)
+  ENCERRADO     // Finalizado (resultado cadastrado, pontos calculados)
+}
+
+/// Vencedor em disputa de pênaltis (apenas jogos mata-mata)
+enum VencedorPenaltis {
+  CASA  // Time mandante venceu nos pênaltis
+  FORA  // Time visitante venceu nos pênaltis
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+/// Usuários do sistema (administradores e participantes)
+/// @description Armazena todos os usuários do sistema, sejam administradores ou usuários comuns
+/// @constraints Email único por usuário, não permite exclusão se houver palpites
+model Usuario {
+  id        String       @id @default(uuid()) @db.Uuid
+  nome      String       @db.VarChar(255)
+  usuario   String       @unique @db.VarChar(100)
+  email     String       @unique @db.VarChar(255)
+  senha     String       @db.VarChar(255) // Hash bcrypt
+  tipo      TipoUsuario  @default(USUARIO)
+  ativo     Boolean      @default(true)
+  
+  // Auditoria
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  palpites        Palpite[]
+  palpitesCampeao PalpiteCampeao[]
+  boloes          BolaoUsuario[]
+
+  // Índices para performance
+  @@index([usuario])
+  @@index([email])
+  @@index([tipo])
+  @@index([ativo])
+  @@index([createdAt])
+  
+  @@map("usuarios")
+}
+
+/// Bolões (competições de palpites)
+/// @description Representa uma competição/torneio onde usuários fazem palpites
+/// @constraints Nome único, data final obrigatória
+model Bolao {
+  id                 String   @id @default(uuid()) @db.Uuid
+  nome               String   @unique @db.VarChar(255)
+  descricao          String?  @db.Text
+  dataFinal          DateTime @map("data_final") @db.Timestamptz(3)
+  ativo              Boolean  @default(true)
+  
+  // Parâmetros de pontuação configuráveis por bolão
+  ptsResultadoExato  Int      @default(10) @map("pts_resultado_exato") @db.SmallInt
+  ptsVencedorGols    Int      @default(6)  @map("pts_vencedor_gols") @db.SmallInt
+  ptsVencedor        Int      @default(3)  @map("pts_vencedor") @db.SmallInt
+  ptsGolsTime        Int      @default(2)  @map("pts_gols_time") @db.SmallInt
+  ptsCampeao         Int      @default(20) @map("pts_campeao") @db.SmallInt
+  ptsPenaltis        Int      @default(1)  @map("pts_penaltis") @db.SmallInt
+  
+  // Auditoria
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  times     BolaoTime[]
+  rodadas   BolaoRodada[]
+  participantes BolaoUsuario[]
+  jogos     Jogo[]
+  campeoes  Campeao[]
+
+  // Índices para performance
+  @@index([ativo])
+  @@index([dataFinal])
+  @@index([nome])
+  @@index([createdAt])
+  
+  @@map("boloes")
+}
+
+/// Times (cadastro global reutilizável)
+/// @description Catálogo de times esportivos que podem ser usados em múltiplos bolões
+/// @constraints Combinação única de nome + categoria
+model Time {
+  id         String  @id @default(uuid()) @db.Uuid
+  nome       String  @db.VarChar(255)
+  categoria  String  @db.VarChar(100) // Ex: "Série A", "Copa do Mundo", "Premier League"
+  escudoUrl  String? @map("escudo_url") @db.VarChar(500)
+  sigla      String? @db.VarChar(10) // Ex: "FLA", "PAL", "COR"
+  
+  // Auditoria
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  boloes          BolaoTime[]
+  jogosCasa       Jogo[]           @relation("TimeCasa")
+  jogosFora       Jogo[]           @relation("TimeFora")
+  palpitesCampeao PalpiteCampeao[]
+  campeaoVencedor Campeao[]        @relation("CampeaoVencedor")
+
+  // Constraints e índices
+  @@unique([nome, categoria], name: "unique_time_categoria")
+  @@index([nome])
+  @@index([categoria])
+  @@index([sigla])
+  
+  @@map("times")
+}
+
+/// Relação N:N entre Bolão e Time
+/// @description Associa times a bolões específicos (um time pode participar de múltiplos bolões)
+/// @constraints Chave primária composta, não permite duplicatas
+model BolaoTime {
+  bolaoId   String   @map("bolao_id") @db.Uuid
+  timeId    String   @map("time_id") @db.Uuid
+  
+  // Auditoria
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  bolao Bolao @relation(fields: [bolaoId], references: [id], onDelete: Cascade)
+  time  Time  @relation(fields: [timeId], references: [id], onDelete: Restrict)
+
+  // Chave primária composta
+  @@id([bolaoId, timeId], name: "pk_bolao_time")
+  
+  // Índices para queries reversas
+  @@index([timeId])
+  @@index([bolaoId])
+  
+  @@map("bolao_times")
+}
+
+/// Relação N:N entre Bolão e Rodada
+/// @description Define quais rodadas pertencem a cada bolão
+/// @constraints Chave primária composta, não permite duplicatas
+model BolaoRodada {
+  bolaoId   String  @map("bolao_id") @db.Uuid
+  rodadaId  String  @map("rodada_id") @db.Uuid
+
+  // Auditoria
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  bolao  Bolao  @relation(fields: [bolaoId], references: [id], onDelete: Cascade)
+  rodada Rodada @relation(fields: [rodadaId], references: [id], onDelete: Restrict)
+
+  // Chave primária composta
+  @@id([bolaoId, rodadaId], name: "pk_bolao_rodada")
+
+  // Índices para queries reversas
+  @@index([rodadaId])
+  @@index([bolaoId])
+
+  @@map("bolao_rodadas")
+}
+
+/// Relação N:N entre Bolão e Usuário (participantes)
+/// @description Define quais usuários participam de um bolão
+/// @constraints Chave primária composta, não permite duplicatas
+model BolaoUsuario {
+  bolaoId   String  @map("bolao_id") @db.Uuid
+  usuarioId String  @map("usuario_id") @db.Uuid
+
+  // Auditoria
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  bolao   Bolao   @relation(fields: [bolaoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  // Chave primária composta
+  @@id([bolaoId, usuarioId], name: "pk_bolao_usuario")
+
+  // Índices para queries reversas
+  @@index([usuarioId])
+  @@index([bolaoId])
+
+  @@map("bolao_usuarios")
+}
+
+/// Rodadas (fases das competições)
+/// @description Agrupa jogos por rodada/fase (ex: Rodada 1, Quartas, Semifinal)
+/// @constraints Nome único global, ordem numérica opcional
+model Rodada {
+  id            String   @id @default(uuid()) @db.Uuid
+  nome          String   @unique @db.VarChar(100) // Ex: "Rodada 1", "Quartas de Final", "Final"
+  numeroOrdem   Int?     @map("numero_ordem") @db.SmallInt // Ordenação opcional
+  descricao     String?  @db.Text
+  ativo         Boolean  @default(true)
+  
+  // Auditoria
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  jogos  Jogo[]
+  boloes BolaoRodada[]
+
+  // Índices
+  @@index([nome])
+  @@index([numeroOrdem])
+  
+  @@map("rodadas")
+}
+
+/// Jogos (partidas entre times)
+/// @description Representa uma partida específica entre dois times
+/// @constraints Time casa ≠ time fora, data/hora obrigatória, resultado apenas quando encerrado
+model Jogo {
+  id              String            @id @default(uuid()) @db.Uuid
+  bolaoId         String            @map("bolao_id") @db.Uuid
+  rodadaId        String            @map("rodada_id") @db.Uuid
+  timeCasaId      String            @map("time_casa_id") @db.Uuid
+  timeForaId      String            @map("time_fora_id") @db.Uuid
+  dataHora        DateTime          @map("data_hora") @db.Timestamptz(3)
+  local           String?           @db.VarChar(255) // Ex: "Maracanã", "Allianz Parque"
+  status          StatusJogo        @default(PALPITES)
+  mataMata        Boolean           @default(false) @map("mata_mata")
+  
+  // Resultado (apenas quando status = ENCERRADO)
+  resultadoCasa     Int?              @map("resultado_casa") @db.SmallInt
+  resultadoFora     Int?              @map("resultado_fora") @db.SmallInt
+  vencedorPenaltis  VencedorPenaltis? @map("vencedor_penaltis")
+  
+  // Metadados
+  encerradoEm   DateTime?         @map("encerrado_em") @db.Timestamptz(3)
+  
+  // Auditoria
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  bolao     Bolao     @relation(fields: [bolaoId], references: [id], onDelete: Cascade)
+  rodada    Rodada    @relation(fields: [rodadaId], references: [id], onDelete: Restrict)
+  timeCasa  Time      @relation("TimeCasa", fields: [timeCasaId], references: [id], onDelete: Restrict)
+  timeFora  Time      @relation("TimeFora", fields: [timeForaId], references: [id], onDelete: Restrict)
+  palpites  Palpite[]
+
+  // Índices compostos para queries comuns
+  @@index([bolaoId, dataHora])
+  @@index([bolaoId, rodadaId])
+  @@index([bolaoId, status])
+  @@index([rodadaId])
+  @@index([dataHora])
+  @@index([status])
+  @@index([timeCasaId])
+  @@index([timeForaId])
+  
+  @@map("jogos")
+}
+
+/// Palpites dos usuários para jogos
+/// @description Armazena o palpite de um usuário para um jogo específico
+/// @constraints Um palpite por usuário por jogo, não permite edição após bloqueio (15min antes)
+model Palpite {
+  id               String            @id @default(uuid()) @db.Uuid
+  jogoId           String            @map("jogo_id") @db.Uuid
+  usuarioId        String            @map("usuario_id") @db.Uuid
+  golsCasa         Int               @map("gols_casa") @db.SmallInt
+  golsFora         Int               @map("gols_fora") @db.SmallInt
+  vencedorPenaltis VencedorPenaltis? @map("vencedor_penaltis")
+  pontuacao        Int               @default(0) @db.SmallInt
+  
+  // Metadados de cálculo
+  calculadoEm      DateTime?         @map("calculado_em") @db.Timestamptz(3)
+  tipoPontuacao    String?           @map("tipo_pontuacao") @db.VarChar(50) // "exato", "vencedor+gols", "vencedor", "gols"
+  
+  // Auditoria
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  jogo    Jogo    @relation(fields: [jogoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  // Constraint única: um palpite por usuário por jogo
+  @@unique([jogoId, usuarioId], name: "unique_palpite_usuario_jogo")
+  
+  // Índices compostos para ranking
+  @@index([usuarioId, pontuacao])
+  @@index([jogoId, pontuacao])
+  @@index([usuarioId])
+  @@index([jogoId])
+  @@index([pontuacao])
+  @@index([calculadoEm])
+  
+  @@map("palpites")
+}
+
+/// Categorias de campeão por bolão (pode ter múltiplos)
+/// @description Define apostas de campeão (ex: quem vence o torneio, artilheiro, etc)
+/// @constraints Um nome único por bolão
+model Campeao {
+  id               String    @id @default(uuid()) @db.Uuid
+  bolaoId          String    @map("bolao_id") @db.Uuid
+  nome             String    @db.VarChar(255) // Ex: "Campeão Copa do Brasil", "Artilheiro"
+  descricao        String?   @db.Text
+  dataLimite       DateTime  @map("data_limite") @db.Timestamptz(3)
+  resultadoFinalId String?   @map("resultado_final_id") @db.Uuid // Time vencedor
+  
+  // Pontuação personalizada (se diferente do padrão do bolão)
+  pontuacao        Int?      @db.SmallInt
+  
+  // Metadados
+  definidoEm       DateTime? @map("definido_em") @db.Timestamptz(3)
+  
+  // Auditoria
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  bolao           Bolao            @relation(fields: [bolaoId], references: [id], onDelete: Cascade)
+  resultadoFinal  Time?            @relation("CampeaoVencedor", fields: [resultadoFinalId], references: [id], onDelete: Restrict)
+  palpites        PalpiteCampeao[]
+
+  // Constraint: nome único dentro do bolão
+  @@unique([bolaoId, nome], name: "unique_campeao_nome_bolao")
+  
+  // Índices
+  @@index([bolaoId])
+  @@index([dataLimite])
+  @@index([resultadoFinalId])
+  
+  @@map("campeoes")
+}
+
+/// Palpites de campeão dos usuários
+/// @description Armazena a escolha do usuário para campeão/artilheiro/etc
+/// @constraints Um palpite por usuário por categoria de campeão
+model PalpiteCampeao {
+  id              String    @id @default(uuid()) @db.Uuid
+  campeaoId       String    @map("campeao_id") @db.Uuid
+  usuarioId       String    @map("usuario_id") @db.Uuid
+  timeEscolhidoId String    @map("time_escolhido_id") @db.Uuid
+  pontuacao       Int       @default(0) @db.SmallInt
+  
+  // Metadados
+  calculadoEm     DateTime? @map("calculado_em") @db.Timestamptz(3)
+  
+  // Auditoria
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Relacionamentos
+  campeao       Campeao @relation(fields: [campeaoId], references: [id], onDelete: Cascade)
+  usuario       Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  timeEscolhido Time    @relation(fields: [timeEscolhidoId], references: [id], onDelete: Restrict)
+
+  // Constraint: um palpite por usuário por categoria
+  @@unique([campeaoId, usuarioId], name: "unique_palpite_campeao_usuario")
+  
+  // Índices
+  @@index([usuarioId])
+  @@index([campeaoId])
+  @@index([timeEscolhidoId])
+  @@index([pontuacao])
+  
+  @@map("palpites_campeao")
+}
+
+/// Mensagem do dia exibida aos usuários
+/// @description Mensagens informativas exibidas na tela inicial
+/// @constraints Apenas uma mensagem ativa por vez (controlado pela aplicação)
+model MensagemDia {
+  id        String   @id @default(uuid()) @db.Uuid
+  titulo    String?  @db.VarChar(255)
+  conteudo  String   @db.Text
+  tipo      String   @default("info") @db.VarChar(50) // info, alerta, aviso, urgente
+  ativo     Boolean  @default(true)
+  
+  // Controle de exibição
+  dataInicio DateTime? @map("data_inicio") @db.Timestamptz(3)
+  dataFim    DateTime? @map("data_fim") @db.Timestamptz(3)
+  
+  // Auditoria
+  criadoPor String?  @map("criado_por") @db.Uuid // Referência ao admin que criou
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Índices
+  @@index([ativo])
+  @@index([dataInicio, dataFim])
+  @@index([tipo])
+  @@index([createdAt])
+  
+  @@map("mensagens_dia")
+}
