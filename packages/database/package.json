@@ -6,13 +6,13 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "generate": "dotenv -e ../../.env -- prisma generate",
-    "push": "dotenv -e ../../.env -- prisma db push",
-    "migrate": "dotenv -e ../../.env -- prisma migrate dev",
-    "migrate:prod": "dotenv -e ../../.env -- prisma migrate deploy",
-    "studio": "dotenv -e ../../.env -- prisma studio",
-    "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
-    "reset": "dotenv -e ../../.env -- prisma migrate reset",
+    "generate": "prisma generate",
+    "push": "prisma db push",
+    "migrate": "prisma migrate dev",
+    "migrate:prod": "prisma migrate deploy",
+    "studio": "prisma studio",
+    "seed": "tsx prisma/seed.ts",
+    "reset": "prisma migrate reset",
     "format": "prisma format"
   },
   "dependencies": {
