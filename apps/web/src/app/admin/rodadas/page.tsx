@@ -12,6 +12,8 @@ export default function AdminRodadasPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const load = async () => {
     try {
@@ -30,6 +32,10 @@ export default function AdminRodadasPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErro(null);
+    setSucesso(null);
+    setIsSaving(true);
+    const isEditing = Boolean(editingId);
     try {
       if (editingId) {
         await atualizarRodada(editingId, {
@@ -49,8 +55,11 @@ export default function AdminRodadasPage() {
       setForm({ nome: '', numeroOrdem: '', descricao: '', ativo: true });
       setEditingId(null);
       await load();
+      setSucesso(isEditing ? 'Rodada atualizada com sucesso.' : 'Rodada criada com sucesso.');
     } catch {
       setErro('Erro ao salvar rodada.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -60,6 +69,7 @@ export default function AdminRodadasPage() {
         <h1 className="text-2xl font-semibold text-gray-900">Rodadas</h1>
         <p className="text-sm text-gray-600">Cadastrar e editar rodadas.</p>
       </div>
+      {sucesso && <p className="text-sm text-green-700">{sucesso}</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
 
       <form onSubmit={submit} className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white">
@@ -102,18 +112,20 @@ export default function AdminRodadasPage() {
         </div>
         <button
           type="submit"
-          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700"
+          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSaving}
         >
-          {editingId ? 'Atualizar rodada' : 'Criar rodada'}
+          {isSaving ? 'Salvando...' : editingId ? 'Atualizar rodada' : 'Criar rodada'}
         </button>
         {editingId && (
           <button
             type="button"
-            className="ml-2 text-sm text-gray-600 underline"
+            className="ml-2 text-sm text-gray-600 underline disabled:opacity-50"
             onClick={() => {
               setEditingId(null);
               setForm({ nome: '', numeroOrdem: '', descricao: '', ativo: true });
             }}
+            disabled={isSaving}
           >
             Cancelar edição
           </button>

@@ -32,6 +32,8 @@ export default function AdminUsuariosPage() {
   const [form, setForm] = useState<UsuarioFormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const load = async () => {
@@ -50,6 +52,9 @@ export default function AdminUsuariosPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro(null);
+    setSucesso(null);
+    setIsSaving(true);
+    const isEditing = Boolean(editingId);
     try {
       if (editingId) {
         await atualizarUsuario(editingId, form);
@@ -59,18 +64,21 @@ export default function AdminUsuariosPage() {
       await load();
       setEditingId(null);
       setForm(emptyForm);
+      setSucesso(isEditing ? 'Usuário atualizado com sucesso.' : 'Usuário criado com sucesso.');
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Erro ao salvar usuário.';
       setErro(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Usuários</h1>
         <p className="text-sm text-gray-600">Gerencie admins e usuários do sistema.</p>
       </div>
+      {sucesso && <p className="text-sm text-green-700">{sucesso}</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
 
       <form onSubmit={submit} className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white">
@@ -130,18 +138,20 @@ export default function AdminUsuariosPage() {
         </div>
         <button
           type="submit"
-          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700"
+          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSaving}
         >
-          {editingId ? 'Atualizar usuário' : 'Criar usuário'}
+          {isSaving ? 'Salvando...' : editingId ? 'Atualizar usuário' : 'Criar usuário'}
         </button>
         {editingId && (
           <button
             type="button"
-            className="text-sm text-gray-600 underline ml-2"
+            className="text-sm text-gray-600 underline ml-2 disabled:opacity-50"
             onClick={() => {
               setEditingId(null);
               setForm(emptyForm);
             }}
+            disabled={isSaving}
           >
             Cancelar edição
           </button>

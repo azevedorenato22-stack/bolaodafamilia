@@ -16,6 +16,7 @@ export default function AdminTimesPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     listarTimes()
@@ -27,6 +28,7 @@ export default function AdminTimesPage() {
     e.preventDefault();
     setErro(null);
     setSucesso(null);
+    setIsSaving(true);
     const isEditing = Boolean(editingId);
     try {
       const categoriaFinal =
@@ -48,6 +50,8 @@ export default function AdminTimesPage() {
       setFiltroCategoria('Todas');
     } catch {
       setErro(isEditing ? 'Erro ao atualizar time.' : 'Erro ao criar time.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -138,10 +142,26 @@ export default function AdminTimesPage() {
         </div>
         <button
           type="submit"
-          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700"
+          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSaving}
         >
-          {editingId ? 'Atualizar time' : 'Criar time'}
+          {isSaving ? 'Salvando...' : editingId ? 'Atualizar time' : 'Criar time'}
         </button>
+        {editingId && (
+          <button
+            type="button"
+            className="text-sm text-gray-600 underline ml-2 disabled:opacity-50"
+            onClick={() => {
+              setEditingId(null);
+              setForm({ nome: '', categoria: '', sigla: '', escudoUrl: '' });
+              setCategoriaSelecionada('');
+              setNovaCategoria('');
+            }}
+            disabled={isSaving}
+          >
+            Cancelar edição
+          </button>
+        )}
       </form>
 
       <div className="border border-gray-200 rounded-xl bg-white shadow-sm">
@@ -171,33 +191,33 @@ export default function AdminTimesPage() {
             .slice()
             .sort((a, b) => a.nome.localeCompare(b.nome))
             .map(t => (
-            <div key={t.id} className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{t.nome}</p>
-                <p className="text-sm text-gray-600">{t.categoria}</p>
+              <div key={t.id} className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">{t.nome}</p>
+                  <p className="text-sm text-gray-600">{t.categoria}</p>
+                </div>
+                <button
+                  className="text-sm text-primary-700 hover:text-primary-800 mr-2"
+                  onClick={() => {
+                    setEditingId(t.id);
+                    setForm({
+                      nome: t.nome,
+                      categoria: t.categoria,
+                      sigla: t.sigla ?? '',
+                      escudoUrl: t.escudoUrl ?? '',
+                    });
+                  }}
+                >
+                  Editar
+                </button>
+                <button
+                  className="text-sm text-red-600 hover:text-red-700"
+                  onClick={() => setConfirmId(t.id)}
+                >
+                  Excluir
+                </button>
               </div>
-              <button
-                className="text-sm text-primary-700 hover:text-primary-800 mr-2"
-                onClick={() => {
-                  setEditingId(t.id);
-                  setForm({
-                    nome: t.nome,
-                    categoria: t.categoria,
-                    sigla: t.sigla ?? '',
-                    escudoUrl: t.escudoUrl ?? '',
-                  });
-                }}
-              >
-                Editar
-              </button>
-              <button
-                className="text-sm text-red-600 hover:text-red-700"
-                onClick={() => setConfirmId(t.id)}
-              >
-                Excluir
-              </button>
-            </div>
-          ))}
+            ))}
           {times.length === 0 && <p className="p-4 text-sm text-gray-600">Nenhum time.</p>}
         </div>
       </div>

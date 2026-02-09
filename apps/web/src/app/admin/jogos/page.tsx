@@ -45,6 +45,7 @@ export default function AdminJogosPage() {
   const [form, setForm] = useState(emptyForm());
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FiltersState>(initialFilters);
@@ -111,6 +112,7 @@ export default function AdminJogosPage() {
     e.preventDefault();
     setErro(null);
     setSucesso(null);
+    setIsSaving(true);
     const isEditing = Boolean(editingId);
     try {
       if (editingId) {
@@ -141,6 +143,8 @@ export default function AdminJogosPage() {
         err?.message ||
         'Erro ao criar/atualizar jogo.';
       setErro(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -536,15 +540,17 @@ export default function AdminJogosPage() {
         )}
         <button
           type="submit"
-          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700"
+          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSaving}
         >
-          {editingId ? 'Atualizar jogo' : 'Criar jogo'}
+          {isSaving ? 'Salvando...' : editingId ? 'Atualizar jogo' : 'Criar jogo'}
         </button>
         {editingId && (
           <button
             type="button"
-            className="text-sm text-gray-600 underline ml-3"
+            className="text-sm text-gray-600 underline ml-3 disabled:opacity-50"
             onClick={resetEdicao}
+            disabled={isSaving}
           >
             Cancelar edição
           </button>

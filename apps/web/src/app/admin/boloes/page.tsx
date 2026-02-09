@@ -18,7 +18,9 @@ export default function AdminBoloesPage() {
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
 
   const emptyForm = () => ({
     nome: '',
@@ -68,6 +70,8 @@ export default function AdminBoloesPage() {
 
   const handleSubmit = async () => {
     setError(null);
+    setSucesso(null);
+    setIsSaving(true);
     try {
       if (editingId) {
         await atualizarBolao(editingId, form);
@@ -75,11 +79,17 @@ export default function AdminBoloesPage() {
         await criarBolao(form);
       }
       await loadData();
-      setMode('list');
-      setEditingId(null);
-      setForm(emptyForm());
+      setSucesso(editingId ? 'Bolão atualizado com sucesso!' : 'Bolão criado com sucesso!');
+      setTimeout(() => {
+        setMode('list');
+        setEditingId(null);
+        setForm(emptyForm());
+        setSucesso(null);
+      }, 1500);
     } catch (err: any) {
       setError(err?.message || 'Erro ao salvar bolão.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -138,6 +148,7 @@ export default function AdminBoloesPage() {
       </div>
 
       {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+      {sucesso && <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">{sucesso}</div>}
 
       {mode !== 'list' ? (
         <div className="bg-white rounded-xl shadow p-6 space-y-4">
@@ -267,14 +278,16 @@ export default function AdminBoloesPage() {
 
           <div className="flex gap-2 pt-4">
             <button
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleSubmit}
+              disabled={isSaving}
             >
-              {editingId ? 'Salvar' : 'Criar'}
+              {isSaving ? 'Salvando...' : editingId ? 'Salvar' : 'Criar'}
             </button>
             <button
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300"
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
               onClick={() => { setMode('list'); setEditingId(null); setForm(emptyForm()); }}
+              disabled={isSaving}
             >
               Cancelar
             </button>

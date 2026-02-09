@@ -45,6 +45,7 @@ export default function JogosPage() {
         string,
         { golsCasa: number; golsFora: number; vencedorPenaltis?: 'CASA' | 'FORA' }
     >>({});
+    const [isSavingPalpite, setIsSavingPalpite] = useState<Record<string, boolean>>({});
     const [feedback, setFeedback] = useState<Record<string, { tipo: 'ok' | 'erro'; msg: string }>>({});
 
     useEffect(() => {
@@ -107,6 +108,12 @@ export default function JogosPage() {
     const handlePalpite = async (jogo: any) => {
         const current = formPalpite[jogo.id] || { golsCasa: 0, golsFora: 0 };
         const existing = meusPalpites[jogo.id];
+        setIsSavingPalpite(prev => ({ ...prev, [jogo.id]: true }));
+        setFeedback(prev => {
+            const next = { ...prev };
+            delete next[jogo.id];
+            return next;
+        });
         try {
             let resposta: any = null;
             if (existing) {
@@ -134,18 +141,20 @@ export default function JogosPage() {
                     pontuacao: resposta?.pontuacao ?? existing?.pontuacao,
                 },
             }));
-            setFeedback({
-                ...feedback,
+            setFeedback(prev => ({
+                ...prev,
                 [jogo.id]: { tipo: 'ok', msg: 'Palpite salvo com sucesso.' },
-            });
+            }));
             if (palpitesAbertos.includes(jogo.id)) {
                 await carregarPalpitesJogo(jogo.id, true);
             }
         } catch (err) {
-            setFeedback({
-                ...feedback,
+            setFeedback(prev => ({
+                ...prev,
                 [jogo.id]: { tipo: 'erro', msg: 'Não foi possível salvar. Verifique horário ou dados.' },
-            });
+            }));
+        } finally {
+            setIsSavingPalpite(prev => ({ ...prev, [jogo.id]: false }));
         }
     };
 
@@ -491,10 +500,10 @@ export default function JogosPage() {
                                     )}
                                     <button
                                         type="submit"
-                                        className="col-span-2 bg-primary-600 text-white rounded-lg px-3 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-60"
-                                        disabled={bloqueado}
+                                        className="col-span-2 bg-primary-600 text-white rounded-lg px-3 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                        disabled={bloqueado || isSavingPalpite[jogo.id]}
                                     >
-                                        {saved ? 'Atualizar palpite' : 'Salvar palpite'}
+                                        {isSavingPalpite[jogo.id] ? 'Salvando...' : saved ? 'Atualizar palpite' : 'Salvar palpite'}
                                     </button>
                                 </form>
                             )}

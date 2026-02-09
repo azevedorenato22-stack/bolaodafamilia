@@ -101,7 +101,7 @@ export default function BoloesPage() {
                   disabled={actionId === b.id}
                   onClick={() => handleSair(b.id)}
                 >
-                  Sair
+                  {actionId === b.id ? 'Saindo...' : 'Sair'}
                 </button>
               </div>
             ))}
@@ -133,7 +133,7 @@ export default function BoloesPage() {
                   disabled={actionId === b.id}
                   onClick={() => handleEntrar(b.id)}
                 >
-                  Entrar
+                  {actionId === b.id ? 'Entrando...' : 'Entrar'}
                 </button>
               </div>
             ))}
