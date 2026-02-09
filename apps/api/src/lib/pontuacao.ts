@@ -4,12 +4,11 @@ export type PontuacaoContext = {
   bolao: {
     ptsResultadoExato: number;
     ptsVencedorGols: number;
-    ptsVencedor: number; // usado como fallback
-    ptsGolsTime: number; // usado como fallback
-    ptsDifGols?: number;
+    ptsVencedor: number;
+    ptsDiferencaGols?: number;
     ptsPlacarPerdedor?: number;
-    ptsVencedorSimples?: number;
     ptsEmpate?: number;
+    ptsEmpateExato?: number;
     ptsPenaltis?: number;
   };
   jogo: {
@@ -55,10 +54,11 @@ export function calcularPontuacaoPalpite({
   const cfg = {
     ptsResultadoExato: Number(bolao.ptsResultadoExato),
     ptsVencedorGols: Number(bolao.ptsVencedorGols),
-    ptsDifGols: Number(bolao.ptsDifGols ?? bolao.ptsVencedor),
-    ptsPlacarPerdedor: Number(bolao.ptsPlacarPerdedor ?? bolao.ptsGolsTime),
-    ptsVencedorSimples: Number(bolao.ptsVencedorSimples ?? bolao.ptsVencedor),
+    ptsDifGols: Number(bolao.ptsDiferencaGols ?? bolao.ptsVencedor),
+    ptsPlacarPerdedor: Number(bolao.ptsPlacarPerdedor ?? 12),
+    ptsVencedorSimples: Number(bolao.ptsVencedor ?? 10),
     ptsEmpate: Number(bolao.ptsEmpate ?? bolao.ptsVencedor),
+    ptsEmpateExato: Number(bolao.ptsEmpateExato ?? bolao.ptsResultadoExato),
     ptsPenaltis: Number(bolao.ptsPenaltis ?? 0),
   };
 
@@ -94,40 +94,30 @@ export function calcularPontuacaoPalpite({
       jogoResultadoCasa !== jogoResultadoFora ||
       acertouPenaltis);
 
-  const finalize = (
-    pontosBase: number,
-    tipo: string,
-    acertouVencedor: boolean,
-  ) => {
-    // Se decidiu nos pênaltis, e o usuário acertou os pênaltis,
-    // a regra solicitada é que receba APENAS os pontos de pênaltis ("só 10 pontos"),
-    // ignorando pontos de placar exato ou outros.
+  // Pontuação de Pênaltis (Adicional)
+  const pontosPenaltis = acertouPenaltis ? cfg.ptsPenaltis : 0;
 
-    const pontos = pontosBase + (acertouPenaltis ? cfg.ptsPenaltis : 0);
+  // Função auxiliar para retornar resultado somando pênaltis
+  const resultado = (
+    ptsBase: number,
+    tipoBase: string,
+    vencedor: boolean,
+    placarExato: boolean,
+  ): ResultadoPontuacao => {
     return {
-      pontos,
-      tipo,
-      acertouVencedor,
-      acertouPlacarExato,
+      pontos: ptsBase + pontosPenaltis,
+      tipo: tipoBase, // O tipo de pontuação principal (ex: PLACAR_EXATO)
+      acertouVencedor: vencedor,
+      acertouPlacarExato: placarExato,
       acertouPenaltis,
     };
   };
 
-  // REGRA ESPECÍFICA: Decisão por pênaltis
-  // Se acertou os penaltis, o usuário recebe APENAS a pontuação de pênaltis.
-  // Isso evita somar com Placar Exato ou Empate.
-  if (acertouPenaltis) {
-    return {
-      pontos: cfg.ptsPenaltis,
-      tipo: "penaltis_apenas",
-      acertouVencedor: true,
-      acertouPlacarExato: acertouPlacarExato,
-      acertouPenaltis: true,
-    };
-  }
-
+  // 1. Placar Exato (PE) - Inclui Empate Exato (25 pts)
   if (acertouPlacarExato) {
-    return finalize(cfg.ptsResultadoExato, "placar_exato", true);
+    const isEmpate = jogoResultadoCasa === jogoResultadoFora;
+    const pontos = isEmpate ? cfg.ptsEmpateExato : cfg.ptsResultadoExato;
+    return resultado(pontos, "placar_exato", true, true);
   }
 
   const acertouVencedor =
@@ -138,33 +128,42 @@ export function calcularPontuacaoPalpite({
   const golsVencedorPalpite =
     resultadoPalpite === "CASA" ? palpiteGolsCasa : palpiteGolsFora;
 
-  if (acertouVencedor && golsVencedorPalpite === golsVencedorReal) {
-    return finalize(cfg.ptsVencedorGols, "placar_vencedor", true);
-  }
-
-  const diffReal = jogoResultadoCasa - jogoResultadoFora;
-  const diffPalpite = palpiteGolsCasa - palpiteGolsFora;
-  if (acertouVencedor && diffReal === diffPalpite) {
-    return finalize(cfg.ptsDifGols, "diferenca_gols", true);
-  }
-
   const golsPerdedorReal =
     resultadoReal === "CASA" ? jogoResultadoFora : jogoResultadoCasa;
   const golsPerdedorPalpite =
     resultadoPalpite === "CASA" ? palpiteGolsFora : palpiteGolsCasa;
-  if (acertouVencedor && golsPerdedorPalpite === golsPerdedorReal) {
-    return finalize(cfg.ptsPlacarPerdedor, "placar_perdedor", true);
+
+  const diffReal = jogoResultadoCasa - jogoResultadoFora;
+  const diffPalpite = palpiteGolsCasa - palpiteGolsFora;
+
+  // 2. Vencedor + Placar Vencedor (PV) - 18 pts
+  if (acertouVencedor && golsVencedorPalpite === golsVencedorReal) {
+    return resultado(cfg.ptsVencedorGols, "placar_vencedor", true, false);
   }
 
+  // 3. Vencedor + Diferença de Gols (DG) - 15 pts
+  if (acertouVencedor && diffReal === diffPalpite) {
+    return resultado(cfg.ptsDifGols, "diferenca_gols", true, false);
+  }
+
+  // 4. Empate Não Exato (EM) - 15 pts
   if (resultadoReal === "EMPATE" && resultadoPalpite === "EMPATE") {
-    return finalize(cfg.ptsEmpate, "empate", true);
+    // Se chegou aqui, não foi exato, então é empate não exato
+    return resultado(cfg.ptsEmpate, "empate", true, false);
   }
 
+  // 5. Vencedor + Placar Perdedor (PP) - 12 pts
+  if (acertouVencedor && golsPerdedorPalpite === golsPerdedorReal) {
+    return resultado(cfg.ptsPlacarPerdedor, "placar_perdedor", true, false);
+  }
+
+  // 6. Vencedor Simples (VS) - 10 pts
   if (acertouVencedor) {
-    return finalize(cfg.ptsVencedorSimples, "vencedor_simples", true);
+    return resultado(cfg.ptsVencedorSimples, "vencedor_simples", true, false);
   }
 
-  return finalize(0, "errou", false);
+  // 7. Errou tudo, mas pode ter acertado pênaltis
+  return resultado(0, "errou", false, false);
 }
 
 export const EXEMPLOS_PONTUACAO = [

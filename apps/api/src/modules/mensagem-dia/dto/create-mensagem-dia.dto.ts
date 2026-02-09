@@ -1,10 +1,9 @@
 import {
   IsBoolean,
-  IsDateString,
-  IsIn,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateIf,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -18,15 +17,15 @@ export class CreateMensagemDiaDto {
   conteudo: string;
 
   @IsOptional()
-  @IsIn(["info", "alerta", "aviso", "urgente"])
+  @IsString()
   tipo?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   dataInicio?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   dataFim?: string;
 
   @IsOptional()
@@ -34,3 +33,4 @@ export class CreateMensagemDiaDto {
   @IsBoolean()
   ativo?: boolean;
 }
+

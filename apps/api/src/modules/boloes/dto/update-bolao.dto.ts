@@ -29,7 +29,6 @@ export class UpdateBolaoDto {
   @IsBoolean()
   ativo?: boolean;
 
-  // Configuração de pontuação
   @IsOptional()
   @IsInt({ message: "Pontos para resultado exato deve ser número inteiro" })
   @Min(0, { message: "Pontos não podem ser negativos" })
@@ -41,14 +40,29 @@ export class UpdateBolaoDto {
   pts_vencedor_gols?: number;
 
   @IsOptional()
+  @IsInt({ message: "Pontos para diferença de gols deve ser número inteiro" })
+  @Min(0, { message: "Pontos não podem ser negativos" })
+  pts_diferenca_gols?: number;
+
+  @IsOptional()
+  @IsInt({ message: "Pontos para empate exato deve ser número inteiro" })
+  @Min(0, { message: "Pontos não podem ser negativos" })
+  pts_empate_exato?: number;
+
+  @IsOptional()
+  @IsInt({ message: "Pontos para empate não exato deve ser número inteiro" })
+  @Min(0, { message: "Pontos não podem ser negativos" })
+  pts_empate?: number;
+
+  @IsOptional()
   @IsInt({ message: "Pontos para vencedor deve ser número inteiro" })
   @Min(0, { message: "Pontos não podem ser negativos" })
   pts_vencedor?: number;
 
   @IsOptional()
-  @IsInt({ message: "Pontos para gols de time deve ser número inteiro" })
+  @IsInt({ message: "Pontos para placar perdedor deve ser número inteiro" })
   @Min(0, { message: "Pontos não podem ser negativos" })
-  pts_gols_time?: number;
+  pts_placar_perdedor?: number;
 
   @IsOptional()
   @IsInt({ message: "Pontos para campeão deve ser número inteiro" })

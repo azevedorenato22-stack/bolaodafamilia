@@ -12,25 +12,16 @@ import { TipoUsuario } from "@prisma/client";
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createUserDto: CreateUserDto) {
-    // Verificar se email já existe
-    const existingEmail = await this.prisma.usuario.findUnique({
-      where: { email: createUserDto.email },
+    // Verificar se nome já existe (como login será por nome, precisa ser único)
+    const existingUser = await this.prisma.usuario.findFirst({
+      where: { nome: { equals: createUserDto.nome, mode: 'insensitive' } },
     });
 
-    if (existingEmail) {
-      throw new ConflictException("Email já cadastrado");
-    }
-
-    // Verificar se usuário já existe
-    const existingUsuario = await this.prisma.usuario.findUnique({
-      where: { usuario: createUserDto.usuario },
-    });
-
-    if (existingUsuario) {
-      throw new ConflictException("Usuário já cadastrado");
+    if (existingUser) {
+      throw new ConflictException("Nome de usuário já cadastrado. Por favor, escolha outro.");
     }
 
     // Hash da senha
@@ -38,8 +29,12 @@ export class UsersService {
 
     const user = await this.prisma.usuario.create({
       data: {
-        ...createUserDto,
+        nome: createUserDto.nome,
         senha: hashedPassword,
+        usuario: createUserDto.usuario || null as any,
+        email: createUserDto.email || null as any,
+        tipo: createUserDto.tipo ?? TipoUsuario.USUARIO,
+        ativo: createUserDto.ativo ?? true,
       },
     });
 
@@ -99,17 +94,10 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string) {
-    const user = await this.prisma.usuario.findUnique({
-      where: { email },
-    });
-
-    return user;
-  }
-
-  async findByUsuario(usuario: string) {
-    const user = await this.prisma.usuario.findUnique({
-      where: { usuario },
+  async findByNome(nome: string) {
+    // Busca insensível a maiúsculas/minúsculas
+    const user = await this.prisma.usuario.findFirst({
+      where: { nome: { equals: nome, mode: "insensitive" } },
     });
 
     return user;
@@ -122,21 +110,8 @@ export class UsersService {
       throw new NotFoundException("Usuário não encontrado");
     }
 
-    // Se está atualizando email, verificar duplicidade
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.findByEmail(updateUserDto.email);
-      if (existingUser) {
-        throw new ConflictException("Email já cadastrado");
-      }
-    }
-
-    // Se está atualizando usuário, verificar duplicidade
-    if (updateUserDto.usuario && updateUserDto.usuario !== user.usuario) {
-      const existingUsuario = await this.findByUsuario(updateUserDto.usuario);
-      if (existingUsuario) {
-        throw new ConflictException("Usuário já cadastrado");
-      }
-    }
+    // Verificações de email e usuário removidas pois são campos opcionais agora
+    // e não usados para login principal. Se necessário, adicionar verificação única via Prisma.
 
     // Se está atualizando senha, fazer hash
     if (updateUserDto.senha) {

@@ -11,7 +11,7 @@ import { UpdateTimeDto } from "./dto/update-time.dto";
 
 @Injectable()
 export class TimesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createTimeDto: CreateTimeDto) {
     // Verificar se já existe time com mesmo nome e categoria
@@ -35,9 +35,13 @@ export class TimesService {
     return time;
   }
 
-  async findAll(categoria?: string) {
+  async findAll(categoria?: string, ativo?: boolean) {
+    const where: any = {};
+    if (categoria) where.categoria = categoria;
+    if (ativo !== undefined) where.ativo = ativo;
+
     const times = await this.prisma.time.findMany({
-      where: categoria ? { categoria } : undefined,
+      where,
       orderBy: { nome: "asc" },
       include: {
         _count: {

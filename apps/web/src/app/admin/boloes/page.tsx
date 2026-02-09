@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useProtectedPage } from '../../providers';
-import { criarBolao, excluirBolao, listarBoloesAdmin, atualizarBolao, toggleBolaoAtivo } from '../../../services/boloes.service';
-import { listarTimes } from '../../../services/times.service';
-import { listarRodadas } from '../../../services/rodadas.service';
-import { ConfirmModal } from '../../../components/confirm-modal';
-import { listarUsuarios } from '../../../services/usuarios.service';
+import { useProtectedPage } from '@/app/providers';
+import { criarBolao, excluirBolao, listarBoloesAdmin, atualizarBolao, toggleBolaoAtivo } from '@/services/boloes.service';
+import { listarTimes } from '@/services/times.service';
+import { listarRodadas } from '@/services/rodadas.service';
+import { ConfirmModal } from '@/components/confirm-modal';
+import { listarUsuarios } from '@/services/usuarios.service';
 
 export default function AdminBoloesPage() {
   useProtectedPage({ roles: ['ADMIN'] });
@@ -14,418 +14,318 @@ export default function AdminBoloesPage() {
   const [times, setTimes] = useState<any[]>([]);
   const [rodadas, setRodadas] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const emptyForm = () => ({
     nome: '',
     descricao: '',
     dataFim: '',
     ativo: true,
-    pts_resultado_exato: 10,
-    pts_vencedor_gols: 6,
-    pts_vencedor: 3,
-    pts_gols_time: 2,
+    pts_resultado_exato: 25,
+    pts_vencedor_gols: 18,
+    pts_diferenca_gols: 15,
+    pts_empate: 15,
+    pts_placar_perdedor: 12,
+    pts_vencedor: 10,
     pts_campeao: 20,
-    pts_penaltis: 1,
+    pts_penaltis: 5,
     timeIds: [] as string[],
     rodadaIds: [] as string[],
     usuarioIds: [] as string[],
   });
   const [form, setForm] = useState(emptyForm());
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
-  const [erro, setErro] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const sortBoloes = (list: any[]) => [...list].sort((a, b) => {
+    if (a.ativo !== b.ativo) return a.ativo ? -1 : 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   const loadData = async () => {
+    setLoading(true);
     try {
-      const [b, t, r, u] = await Promise.all([
+      const [bData, tData, rData, uData] = await Promise.all([
         listarBoloesAdmin(),
         listarTimes(),
         listarRodadas(),
         listarUsuarios(),
       ]);
-      setBoloes(sortBoloes(b));
-      setTimes(t);
-      setRodadas(r);
-      setUsuarios(u);
+      setBoloes(sortBoloes(bData));
+      setTimes(tData);
+      setRodadas(rData);
+      setUsuarios(uData.filter((u: any) => u.tipo === 'USUARIO'));
     } catch {
-      setErro('Falha ao carregar bolões/times/rodadas/usuários.');
+      setError('Erro ao carregar dados.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const sortBoloes = (lista: any[]) => {
-    return [...lista].sort((a, b) => {
-      // Ordena por Ativo (True primeiro) e depois Nome
-      if (a.ativo !== b.ativo) return a.ativo ? -1 : 1;
-      return a.nome.localeCompare(b.nome);
-    });
-  };
+  useEffect(() => { loadData(); }, []);
 
-  const usuariosDisponiveis = [...usuarios]
-    .filter((u: any) => u.tipo === 'USUARIO' && u.ativo)
-    .sort((a: any, b: any) => a.nome.localeCompare(b.nome));
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErro(null);
+  const handleSubmit = async () => {
+    setError(null);
     try {
       if (editingId) {
-        await atualizarBolao(editingId, { ...form, dataFim: form.dataFim });
+        await atualizarBolao(editingId, form);
       } else {
-        await criarBolao({ ...form, dataFim: form.dataFim });
+        await criarBolao(form);
       }
-
-      // Recarregar lista explicitamente
-      const b = await listarBoloesAdmin();
-      setBoloes(sortBoloes(b));
-
-      alert(editingId ? 'Bolão atualizado.' : 'Bolão criado.');
-      setForm(emptyForm());
-      setEditingId(null);
+      await loadData();
       setMode('list');
+      setEditingId(null);
+      setForm(emptyForm());
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Erro ao criar/atualizar bolão.';
-      setErro(Array.isArray(msg) ? msg.join(', ') : msg);
+      setError(err?.message || 'Erro ao salvar bolão.');
     }
   };
 
   const handleDelete = async (id: string, senha: string) => {
     try {
       await excluirBolao(id, senha);
-      const b = await listarBoloesAdmin();
-      setBoloes(sortBoloes(b));
+      await loadData();
     } catch {
-      alert('Não foi possível excluir.');
+      setError('Não foi possível excluir o bolão.');
     }
   };
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Bolões</h1>
-        <p className="text-sm text-gray-600">Cadastrar, listar e excluir bolões.</p>
-      </div>
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+  const handleEdit = (b: any) => {
+    setEditingId(b.id);
+    setMode('edit');
+    setForm({
+      nome: b.nome,
+      descricao: b.descricao ?? '',
+      dataFim: b.dataFinal?.slice(0, 10) ?? '',
+      ativo: b.ativo ?? true,
+      pts_resultado_exato: b.ptsResultadoExato ?? 25,
+      pts_vencedor_gols: b.ptsVencedorGols ?? 18,
+      pts_diferenca_gols: b.ptsDiferencaGols ?? 15,
+      pts_empate: b.ptsEmpate ?? 15,
+      pts_placar_perdedor: b.ptsPlacarPerdedor ?? 12,
+      pts_vencedor: b.ptsVencedor ?? 10,
+      pts_campeao: b.ptsCampeao ?? 20,
+      pts_penaltis: b.ptsPenaltis ?? 5,
+      timeIds: b.times?.map((t: any) => t.id) ?? [],
+      rodadaIds: b.rodadas?.map((r: any) => r.id) ?? [],
+      usuarioIds: b.participantes?.map((u: any) => u.id) ?? [],
+    });
+  };
 
-      {mode !== 'list' && (
-        <form onSubmit={submit} className="space-y-4 border border-gray-200 rounded-xl p-4 bg-white">
-          <div className="grid md:grid-cols-2 gap-3">
+  if (loading) return <div className="p-6">Carregando...</div>;
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Bolões</h1>
+        {mode === 'list' ? (
+          <button
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+            onClick={() => { setMode('create'); setForm(emptyForm()); setEditingId(null); }}
+          >
+            + Novo Bolão
+          </button>
+        ) : (
+          <button
+            className="text-gray-600 hover:text-gray-800"
+            onClick={() => { setMode('list'); setEditingId(null); setForm(emptyForm()); }}
+          >
+            ← Voltar
+          </button>
+        )}
+      </div>
+
+      {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+      {mode !== 'list' ? (
+        <div className="bg-white rounded-xl shadow p-6 space-y-4">
+          <h2 className="text-lg font-semibold">{editingId ? 'Editar Bolão' : 'Novo Bolão'}</h2>
+
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium">Nome</label>
+              <label className="text-sm font-medium">Nome *</label>
               <input
                 className="w-full border rounded-lg px-3 py-2 text-sm"
                 value={form.nome}
                 onChange={e => setForm({ ...form, nome: e.target.value })}
-                required
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Data final</label>
+              <label className="text-sm font-medium">Data Final *</label>
               <input
                 type="date"
                 className="w-full border rounded-lg px-3 py-2 text-sm"
                 value={form.dataFim}
                 onChange={e => setForm({ ...form, dataFim: e.target.value })}
-                required
               />
             </div>
           </div>
+
           <div>
             <label className="text-sm font-medium">Descrição</label>
             <textarea
               className="w-full border rounded-lg px-3 py-2 text-sm"
+              rows={2}
               value={form.descricao}
               onChange={e => setForm({ ...form, descricao: e.target.value })}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="ativoBolao"
-              checked={form.ativo}
-              onChange={e => setForm({ ...form, ativo: e.target.checked })}
-            />
-            <label htmlFor="ativoBolao" className="text-sm font-medium">Ativo</label>
-          </div>
-          <div className="grid md:grid-cols-3 gap-3">
+
+          <h3 className="text-md font-semibold pt-4">Pontuação</h3>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              ['pts_resultado_exato', 'Placar Exato'],
-              ['pts_vencedor_gols', 'Placar do Vencedor'],
-              ['pts_vencedor', 'Diferença de Gols e Empate'],
-              ['pts_gols_time', 'Placar do Perdedor'],
-              ['pts_campeao', 'Vencedor Simples'],
-              ['pts_penaltis', 'Pênaltis'],
-            ].map(([key, label]) => (
+              { key: 'pts_resultado_exato', label: 'Placar Exato (PE)' },
+              { key: 'pts_vencedor_gols', label: 'Vencedor + Placar (PV)' },
+              { key: 'pts_diferenca_gols', label: 'Dif. Gols (DG)' },
+              { key: 'pts_empate', label: 'Empate (EM)' },
+              { key: 'pts_placar_perdedor', label: 'Placar Perdedor (PP)' },
+              { key: 'pts_vencedor', label: 'Vencedor Simples (VS)' },
+              { key: 'pts_campeao', label: 'Campeão' },
+              { key: 'pts_penaltis', label: 'Pênaltis' },
+            ].map(({ key, label }) => (
               <div key={key}>
-                <label className="text-sm font-medium">{label}</label>
+                <label className="text-xs font-medium text-gray-700">{label}</label>
                 <input
                   type="number"
                   className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={(form as any)[key]}
+                  value={(form as any)[key] ?? 0}
                   onChange={e => setForm({ ...form, [key]: Number(e.target.value) })}
                 />
               </div>
             ))}
           </div>
-          <div>
-            <label className="text-sm font-medium">Times do bolão</label>
-            <div className="flex gap-2 mb-2">
-              <select
-                className="border rounded-lg px-2 py-1 text-sm"
-                onChange={e => {
-                  const cat = e.target.value;
-                  if (!cat) return;
-                  const ids = times.filter(t => t.categoria === cat).map(t => t.id);
-                  const set = new Set(form.timeIds.concat(ids));
-                  setForm({ ...form, timeIds: Array.from(set) });
-                }}
-              >
-                <option value="">Selecionar por categoria</option>
-                {[...new Set(times.map((t: any) => t.categoria))].map(cat => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="text-sm text-gray-600 underline"
-                onClick={() => setForm({ ...form, timeIds: [] })}
-              >
-                Limpar seleção
-              </button>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto border rounded-lg p-2">
-              {times.map(t => (
-                <label key={t.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.timeIds.includes(t.id)}
-                    onChange={e => {
-                      const set = new Set(form.timeIds);
-                      e.target.checked ? set.add(t.id) : set.delete(t.id);
-                      setForm({ ...form, timeIds: Array.from(set) });
-                    }}
-                  />
-                  {t.nome} <span className="text-gray-500 text-xs">({t.categoria})</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Rodadas do bolão</label>
-            <div className="flex gap-2 mb-2">
-              <button
-                type="button"
-                className="text-sm text-gray-600 underline"
-                onClick={() => setForm({ ...form, rodadaIds: rodadas.map((r: any) => r.id) })}
-              >
-                Selecionar todas
-              </button>
-              <button
-                type="button"
-                className="text-sm text-gray-600 underline"
-                onClick={() => setForm({ ...form, rodadaIds: [] })}
-              >
-                Limpar seleção
-              </button>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto border rounded-lg p-2">
-              {rodadas.map(r => (
-                <label key={r.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.rodadaIds.includes(r.id)}
-                    onChange={e => {
-                      const set = new Set(form.rodadaIds);
-                      e.target.checked ? set.add(r.id) : set.delete(r.id);
-                      setForm({ ...form, rodadaIds: Array.from(set) });
-                    }}
-                  />
-                  {r.nome}
-                </label>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Participantes (usuários)</label>
-            <div className="flex gap-2 mb-2">
-              <button
-                type="button"
-                className="text-sm text-gray-600 underline"
-                onClick={() =>
-                  setForm({ ...form, usuarioIds: usuariosDisponiveis.map((u: any) => u.id) })
-                }
-              >
-                Selecionar todos
-              </button>
-              <button
-                type="button"
-                className="text-sm text-gray-600 underline"
-                onClick={() => setForm({ ...form, usuarioIds: [] })}
-              >
-                Limpar seleção
-              </button>
-              <span className="text-xs text-gray-500 self-center">
-                Selecionados: {form.usuarioIds.length}
-              </span>
-            </div>
-            {form.usuarioIds.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {form.usuarioIds.map(id => {
-                  const u = usuarios.find((x: any) => x.id === id);
-                  return (
-                    <span
-                      key={id}
-                      className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs"
-                    >
-                      <span className="text-gray-800">{u?.nome || id}</span>
-                      <button
-                        type="button"
-                        className="text-red-600 hover:text-red-700 font-semibold"
-                        onClick={() =>
-                          setForm({
-                            ...form,
-                            usuarioIds: form.usuarioIds.filter(uid => uid !== id),
-                          })
+
+          <h3 className="text-md font-semibold pt-4">Times do Bolão</h3>
+          <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
+            {times.length === 0 ? (
+              <p className="text-sm text-gray-500">Nenhum time cadastrado.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {times.map((t: any) => (
+                  <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={form.timeIds.includes(t.id)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setForm({ ...form, timeIds: [...form.timeIds, t.id] });
+                        } else {
+                          setForm({ ...form, timeIds: form.timeIds.filter(id => id !== t.id) });
                         }
-                      >
-                        Remover
-                      </button>
-                    </span>
-                  );
-                })}
+                      }}
+                    />
+                    {t.nome}
+                  </label>
+                ))}
               </div>
             )}
-            <div className="grid sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto border rounded-lg p-2">
-              {usuariosDisponiveis.map(u => (
-                <label key={u.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.usuarioIds.includes(u.id)}
-                    onChange={e => {
-                      const set = new Set(form.usuarioIds);
-                      e.target.checked ? set.add(u.id) : set.delete(u.id);
-                      setForm({ ...form, usuarioIds: Array.from(set) });
-                    }}
-                  />
-                  {u.nome} <span className="text-gray-500 text-xs">({u.usuario})</span>
-                </label>
-              ))}
-              {usuariosDisponiveis.length === 0 && (
-                <p className="text-sm text-gray-600">Nenhum usuário ativo disponível.</p>
-              )}
-            </div>
           </div>
-          <button
-            type="submit"
-            className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700"
-          >
-            {editingId ? 'Atualizar bolão' : 'Criar bolão'}
-          </button>
-          <button
-            type="button"
-            className="text-sm text-gray-600 underline ml-2"
-            onClick={() => {
-              setEditingId(null);
-              setMode('list');
-              setForm(emptyForm());
-            }}
-          >
-            Cancelar
-          </button>
-        </form>
+          <p className="text-xs text-gray-500">
+            {form.timeIds.length} time(s) selecionado(s)
+          </p>
+
+          <h3 className="text-md font-semibold pt-4">Rodadas do Bolão</h3>
+          <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
+            {rodadas.length === 0 ? (
+              <p className="text-sm text-gray-500">Nenhuma rodada cadastrada.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {rodadas.map((r: any) => (
+                  <label key={r.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={form.rodadaIds.includes(r.id)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setForm({ ...form, rodadaIds: [...form.rodadaIds, r.id] });
+                        } else {
+                          setForm({ ...form, rodadaIds: form.rodadaIds.filter(id => id !== r.id) });
+                        }
+                      }}
+                    />
+                    {r.nome}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-500">
+            {form.rodadaIds.length} rodada(s) selecionada(s)
+          </p>
+
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              type="checkbox"
+              id="ativo"
+              checked={form.ativo}
+              onChange={e => setForm({ ...form, ativo: e.target.checked })}
+            />
+            <label htmlFor="ativo" className="text-sm">Ativo</label>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+              onClick={handleSubmit}
+            >
+              {editingId ? 'Salvar' : 'Criar'}
+            </button>
+            <button
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300"
+              onClick={() => { setMode('list'); setEditingId(null); setForm(emptyForm()); }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="divide-y">
+            {boloes.map(b => (
+              <div key={b.id} className={`p-4 flex justify-between items-center ${!b.ativo ? 'bg-gray-50 opacity-60' : ''}`}>
+                <div>
+                  <div className="font-medium">{b.nome}</div>
+                  <div className="text-xs text-gray-500">
+                    {b.times?.length ?? 0} times • {b.rodadas?.length ?? 0} rodadas • {b.participantes?.length ?? 0} participantes
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    className="text-sm text-blue-600 hover:text-blue-700"
+                    onClick={() => handleEdit(b)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="text-sm text-gray-700 hover:text-gray-900"
+                    onClick={async () => {
+                      try {
+                        await toggleBolaoAtivo(b.id);
+                        const novaLista = await listarBoloesAdmin();
+                        setBoloes(sortBoloes(novaLista));
+                      } catch {
+                        alert('Não foi possível alterar o status.');
+                      }
+                    }}
+                  >
+                    {b.ativo ? 'Desativar' : 'Ativar'}
+                  </button>
+                  <button
+                    className="text-sm text-red-600 hover:text-red-700"
+                    onClick={() => setConfirmId(b.id)}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            ))}
+            {boloes.length === 0 && <p className="p-4 text-sm text-gray-600">Nenhum bolão cadastrado.</p>}
+          </div>
+        </div>
       )}
 
-      <div className="border border-gray-200 rounded-xl bg-white shadow-sm">
-        <div className="p-4 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
-          <span>Bolões existentes</span>
-          {mode === 'list' && (
-            <button
-              className="text-sm text-primary-700 hover:text-primary-800 font-semibold"
-              onClick={() => {
-                setEditingId(null);
-                setMode('create');
-                setForm(emptyForm());
-              }}
-            >
-              Criar bolão
-            </button>
-          )}
-        </div>
-        <div className="divide-y divide-gray-100">
-          {boloes.map(b => (
-            <div key={b.id} className="p-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="font-semibold flex items-center gap-2">
-                  {b.nome}
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${b.ativo
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-gray-100 text-gray-600 border border-gray-200'
-                      }`}
-                  >
-                    {b.ativo ? 'Ativo' : 'Desativado'}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-600">
-                  Final: {new Date(b.dataFinal).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-              <div className="flex gap-3 text-sm items-center">
-                <button
-                  className="text-primary-700 hover:text-primary-800"
-                  onClick={() => {
-                    setEditingId(b.id);
-                    setMode('edit');
-                    setForm({
-                      nome: b.nome,
-                      descricao: b.descricao ?? '',
-                      dataFim: b.dataFinal?.slice(0, 10) ?? '',
-                      ativo: b.ativo ?? true,
-                      pts_resultado_exato: b.ptsResultadoExato,
-                      pts_vencedor_gols: b.ptsVencedorGols,
-                      pts_vencedor: b.ptsVencedor,
-                      pts_gols_time: b.ptsGolsTime,
-                      pts_campeao: b.ptsCampeao,
-                      pts_penaltis: b.ptsPenaltis ?? 1,
-                      timeIds: b.times?.map((t: any) => t.id) ?? [],
-                      rodadaIds: b.rodadas?.map((r: any) => r.id) ?? [],
-                      usuarioIds: b.participantes?.map((u: any) => u.id) ?? [],
-                    });
-                  }}
-                >
-                  Editar
-                </button>
-                <button
-                  className="text-sm text-gray-700 hover:text-gray-900"
-                  onClick={async () => {
-                    try {
-                      await toggleBolaoAtivo(b.id);
-                      const novaLista = await listarBoloesAdmin();
-                      setBoloes(sortBoloes(novaLista));
-                    } catch {
-                      alert('Não foi possível alterar o status.');
-                    }
-                  }}
-                >
-                  {b.ativo ? 'Desativar' : 'Ativar'}
-                </button>
-                <button
-                  className="text-sm text-red-600 hover:text-red-700"
-                  onClick={() => setConfirmId(b.id)}
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
-          ))}
-          {boloes.length === 0 && <p className="p-4 text-sm text-gray-600">Nenhum bolão.</p>}
-        </div>
-      </div>
       {confirmId && (
         <ConfirmModal
           title="Confirmar exclusão"

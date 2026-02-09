@@ -23,10 +23,10 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   async login(loginDto: LoginDto): Promise<AuthResponse> {
-    const user = await this.usersService.findByUsuario(loginDto.usuario);
+    const user = await this.usersService.findByNome(loginDto.nome);
 
     if (!user) {
       throw new UnauthorizedException("Credenciais inválidas");
@@ -46,28 +46,19 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    // Verificar se email já existe
-    const existingEmail = await this.usersService.findByEmail(
-      registerDto.email,
-    );
-    if (existingEmail) {
-      throw new BadRequestException("Email já cadastrado");
+    // Verificar se nome já existe handled in UsersService.create
+    // Mas para segurança dupla ou feedback rápido:
+    const existingUser = await this.usersService.findByNome(registerDto.nome);
+    if (existingUser) {
+      throw new BadRequestException("Nome já está em uso");
     }
 
-    // Verificar se usuário já existe
-    const existingUsuario = await this.usersService.findByUsuario(
-      registerDto.usuario,
-    );
-    if (existingUsuario) {
-      throw new BadRequestException("Usuário já cadastrado");
-    }
-
-    // Criar usuário
+    // Criar usuário (CreateUserDto precisa ser compatível com RegisterDto)
+    // Precisamos ajustar o mapping pois create espera CreateUserDto que pode ter campos antigos
     const user = await this.usersService.create({
-      ...registerDto,
-      tipo: TipoUsuario.USUARIO,
-      ativo: true,
-    });
+      nome: registerDto.nome,
+      senha: registerDto.senha,
+    } as any); // Mantendo any por segurança de tipo misto, mas agora DTO aceita falta de email
 
     // Buscar usuário completo para gerar tokens
     const fullUser = await this.usersService.findById(user.id);
@@ -104,8 +95,7 @@ export class AuthService {
   private generateTokens(user: any): AuthResponse {
     const payload: JwtPayload = {
       sub: user.id,
-      usuario: user.usuario,
-      email: user.email,
+      nome: user.nome,
       tipo: user.tipo,
     };
 
@@ -128,8 +118,8 @@ export class AuthService {
       usuario: {
         id: user.id,
         nome: user.nome,
-        usuario: user.usuario,
-        email: user.email,
+        // usuario: user.usuario,
+        // email: user.email,
         tipo: user.tipo,
         ativo: user.ativo,
       },
@@ -146,8 +136,6 @@ export class AuthService {
     return {
       id: user.id,
       nome: user.nome,
-      usuario: user.usuario,
-      email: user.email,
       tipo: user.tipo,
       ativo: user.ativo,
     };

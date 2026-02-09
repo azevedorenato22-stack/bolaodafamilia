@@ -3,13 +3,13 @@ import { TipoUsuario } from "@prisma/client";
 
 export class LoginDto {
   @IsString()
-  @IsNotEmpty({ message: "Usuário é obrigatório" })
-  @MinLength(3, { message: "Usuário deve ter pelo menos 3 caracteres" })
-  usuario: string;
+  @IsNotEmpty({ message: "Nome é obrigatório" })
+  @MinLength(3, { message: "Nome deve ter pelo menos 3 caracteres" })
+  nome: string;
 
   @IsString()
   @IsNotEmpty({ message: "Senha é obrigatória" })
-  @MinLength(6, { message: "Senha deve ter pelo menos 6 caracteres" })
+  @MinLength(4, { message: "Senha deve ter pelo menos 4 caracteres" }) // Reduced min length for simplicity if needed
   senha: string;
 }
 
@@ -22,20 +22,12 @@ export class RefreshTokenDto {
 export class RegisterDto {
   @IsString()
   @IsNotEmpty({ message: "Nome é obrigatório" })
+  @MinLength(3, { message: "Nome deve ter pelo menos 3 caracteres" })
   nome: string;
 
   @IsString()
-  @IsNotEmpty({ message: "Usuário é obrigatório" })
-  @MinLength(3, { message: "Usuário deve ter pelo menos 3 caracteres" })
-  usuario: string;
-
-  @IsEmail({}, { message: "Email inválido" })
-  @IsNotEmpty({ message: "Email é obrigatório" })
-  email: string;
-
-  @IsString()
   @IsNotEmpty({ message: "Senha é obrigatória" })
-  @MinLength(6, { message: "Senha deve ter pelo menos 6 caracteres" })
+  @MinLength(4, { message: "Senha deve ter pelo menos 4 caracteres" })
   senha: string;
 }
 
@@ -45,8 +37,7 @@ export class RegisterDto {
 
 export interface JwtPayload {
   sub: string;
-  usuario: string;
-  email: string;
+  nome: string;
   tipo: TipoUsuario;
   iat?: number;
   exp?: number;
@@ -58,8 +49,6 @@ export interface AuthResponse {
   usuario: {
     id: string;
     nome: string;
-    usuario: string;
-    email: string;
     tipo: TipoUsuario;
     ativo: boolean;
   };
@@ -68,8 +57,6 @@ export interface AuthResponse {
 export interface UserPayload {
   id: string;
   nome: string;
-  usuario: string;
-  email: string;
   tipo: TipoUsuario;
   ativo: boolean;
 }

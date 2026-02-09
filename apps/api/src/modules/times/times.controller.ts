@@ -29,7 +29,7 @@ import { TipoUsuario } from "@prisma/client";
 @Controller("times")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TimesController {
-  constructor(private readonly timesService: TimesService) {}
+  constructor(private readonly timesService: TimesService) { }
 
   /**
    * Criar novo time (ADMIN apenas)
@@ -49,8 +49,9 @@ export class TimesController {
    */
   @Get()
   @Public()
-  findAll(@Query("categoria") categoria?: string) {
-    return this.timesService.findAll(categoria);
+  findAll(@Query("categoria") categoria?: string, @Query("ativo") ativo?: string) {
+    const ativoBool = ativo === undefined ? undefined : ativo === "true";
+    return this.timesService.findAll(categoria, ativoBool);
   }
 
   /**

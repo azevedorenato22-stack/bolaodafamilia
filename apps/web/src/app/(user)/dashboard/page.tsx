@@ -2,575 +2,145 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useProtectedPage, useAuth } from '../../providers';
-import { listarJogos } from '../../../services/jogos.service';
-import {
-  criarPalpite,
-  atualizarPalpite,
-  listarPalpitesDoJogo,
-  listarMeusPalpites,
-} from '../../../services/palpites.service';
-import { mensagemAtual } from '../../../services/mensagem.service';
+import Image from 'next/image';
+import { useAuth } from '../../providers';
 import { listarMeusBoloes } from '../../../services/boloes.service';
+import { mensagemAtual } from '../../../services/mensagem.service';
+import { extratoUsuario } from '../../../services/ranking.service';
 
 export default function DashboardPage() {
-  const { user } = useProtectedPage({ roles: ['USUARIO'] });
-  const [bolaoFiltro, setBolaoFiltro] = useState('');
-  const [statusFiltro, setStatusFiltro] = useState('');
-  const [rodadaFiltro, setRodadaFiltro] = useState('');
-  const [dataFiltro, setDataFiltro] = useState('');
-  const [futuroFiltro, setFuturoFiltro] = useState(false);
+  const { user } = useAuth();
   const [boloes, setBoloes] = useState<any[]>([]);
-  const [jogos, setJogos] = useState<any[]>([]);
-  const [rodadas, setRodadas] = useState<any[]>([]);
-  const [mensagemDoDia, setMensagemDoDia] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  const [palpitesPorJogo, setPalpitesPorJogo] = useState<
-    Record<string, { loading: boolean; erro?: string | null; dados?: any[] }>
-  >({});
-  const [palpitesAbertos, setPalpitesAbertos] = useState<string[]>([]);
-  const [meusPalpites, setMeusPalpites] = useState<
-    Record<
-      string,
-      {
-        id: string;
-        golsCasa: number;
-        golsFora: number;
-        vencedorPenaltis?: 'CASA' | 'FORA' | null;
-        pontuacao?: number | null;
-      }
-    >
-  >({});
-  const [formPalpite, setFormPalpite] = useState<Record<
-    string,
-    { golsCasa: number; golsFora: number; vencedorPenaltis?: 'CASA' | 'FORA' }
-  >>({});
-  const [feedback, setFeedback] = useState<Record<string, { tipo: 'ok' | 'erro'; msg: string }>>({});
+  const [mensagem, setMensagem] = useState<any | null>(null);
+  const [pontosPorBolao, setPontosPorBolao] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([listarMeusBoloes(), mensagemAtual()])
-      .then(([b, msg]) => {
-        const ativos = b ?? [];
-        setBoloes(ativos);
-        setRodadas([]);
-        setMensagemDoDia(msg);
-      })
-      .catch(() => setErro('Falha ao carregar dados.'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    const carregarDados = async () => {
-      if (!bolaoFiltro) {
-        setJogos([]);
-        setMeusPalpites({});
-        setFormPalpite({});
-        return;
-      }
-      setLoading(true);
-      setErro(null);
+    async function carregar() {
       try {
-        const [listaJogos, meus] = await Promise.all([
-          listarJogos({ bolaoId: bolaoFiltro }),
-          listarMeusPalpites(bolaoFiltro),
+        const [msg, meusBoloes] = await Promise.all([
+          mensagemAtual().catch(() => null),
+          listarMeusBoloes().catch(() => []),
         ]);
-        setJogos(listaJogos);
-        const bolao = boloes.find(b => b.id === bolaoFiltro);
-        setRodadas(bolao?.rodadas ?? []);
-        const meusMap: Record<string, any> = {};
-        const formMap: Record<string, any> = {};
-        (meus || []).forEach((p: any) => {
-          meusMap[p.jogoId] = {
-            id: p.id,
-            golsCasa: p.golsCasa,
-            golsFora: p.golsFora,
-            vencedorPenaltis: p.vencedorPenaltis,
-            pontuacao: p.pontuacao,
-          };
-          formMap[p.jogoId] = {
-            golsCasa: p.golsCasa,
-            golsFora: p.golsFora,
-            vencedorPenaltis: p.vencedorPenaltis || undefined,
-          };
-        });
-        setMeusPalpites(meusMap);
-        setFormPalpite(formMap);
-      } catch {
-        setErro('Falha ao carregar jogos/palpites.');
+        setMensagem(msg);
+        setBoloes(meusBoloes || []);
+
+        if (user && meusBoloes && meusBoloes.length > 0) {
+          const pontosMap: Record<string, number> = {};
+          await Promise.all(
+            meusBoloes.map(async (b: any) => {
+              try {
+                const extrato = await extratoUsuario(b.id, user.id);
+                pontosMap[b.id] = extrato.resumo?.pontosTotal ?? 0;
+              } catch (e) {
+                console.error('Erro ao carregar extrato', e);
+              }
+            })
+          );
+          setPontosPorBolao(pontosMap);
+        }
+
+      } catch (error) {
+        console.error('Erro ao carregar dashboard', error);
       } finally {
         setLoading(false);
       }
-    };
-    carregarDados();
-  }, [bolaoFiltro, boloes]);
-
-  const handlePalpite = async (jogo: any) => {
-    const current = formPalpite[jogo.id] || { golsCasa: 0, golsFora: 0 };
-    const existing = meusPalpites[jogo.id];
-    try {
-      let resposta: any = null;
-      if (existing) {
-        resposta = await atualizarPalpite(existing.id, {
-          jogoId: jogo.id,
-          golsCasa: current.golsCasa,
-          golsFora: current.golsFora,
-          vencedorPenaltis: current.vencedorPenaltis,
-        });
-      } else {
-        resposta = await criarPalpite({
-          jogoId: jogo.id,
-          golsCasa: current.golsCasa,
-          golsFora: current.golsFora,
-          vencedorPenaltis: current.vencedorPenaltis,
-        });
-      }
-      setMeusPalpites(prev => ({
-        ...prev,
-        [jogo.id]: {
-          id: existing?.id ?? resposta.id,
-          golsCasa: current.golsCasa,
-          golsFora: current.golsFora,
-          vencedorPenaltis: current.vencedorPenaltis,
-          pontuacao: resposta?.pontuacao ?? existing?.pontuacao,
-        },
-      }));
-      setFeedback({
-        ...feedback,
-        [jogo.id]: { tipo: 'ok', msg: 'Palpite salvo com sucesso.' },
-      });
-      if (palpitesAbertos.includes(jogo.id)) {
-        await carregarPalpitesJogo(jogo.id, true);
-      }
-    } catch (err) {
-      setFeedback({
-        ...feedback,
-        [jogo.id]: { tipo: 'erro', msg: 'Não foi possível salvar. Verifique horário ou dados.' },
-      });
     }
-  };
+    if (user) carregar();
+  }, [user]);
 
-  const carregarPalpitesJogo = async (jogoId: string, refresh = false) => {
-    const current = palpitesPorJogo[jogoId];
-    if (current?.loading || (current?.dados && !refresh)) return;
-    setPalpitesPorJogo(prev => ({ ...prev, [jogoId]: { loading: true } }));
-    try {
-      const lista = await listarPalpitesDoJogo(jogoId);
-      setPalpitesPorJogo(prev => ({ ...prev, [jogoId]: { loading: false, dados: lista } }));
-      const meu = lista.find((p: any) => p.usuarioId === user?.id);
-      if (meu) {
-        setMeusPalpites(prev => ({
-          ...prev,
-          [jogoId]: {
-            id: meu.id,
-            golsCasa: meu.golsCasa,
-            golsFora: meu.golsFora,
-            vencedorPenaltis: meu.vencedorPenaltis,
-            pontuacao: meu.pontuacao,
-          },
-        }));
-        setFormPalpite(prev => ({
-          ...prev,
-          [jogoId]: {
-            golsCasa: meu.golsCasa,
-            golsFora: meu.golsFora,
-            vencedorPenaltis: meu.vencedorPenaltis || undefined,
-          },
-        }));
-      }
-    } catch (err) {
-      setPalpitesPorJogo(prev => ({ ...prev, [jogoId]: { loading: false, erro: 'Falha ao carregar palpites' } }));
-    }
-  };
-
-  const hasSelection = !!bolaoFiltro;
-  const filtrados = hasSelection
-    ? jogos.filter(jogo => {
-      const matchBolao = jogo.bolaoId === bolaoFiltro || jogo.bolao?.nome === bolaoFiltro;
-      const matchStatus = !statusFiltro || jogo.status === statusFiltro;
-      const matchRodada = !rodadaFiltro || jogo.rodadaId === rodadaFiltro;
-      const matchData = !dataFiltro || jogo.dataHora.slice(0, 10) === dataFiltro;
-      const isFuturo =
-        new Date(jogo.dataHora).getTime() > new Date().setHours(23, 59, 59, 999);
-      const matchFuturo = !futuroFiltro || isFuturo;
-      return matchBolao && matchStatus && matchRodada && matchData && matchFuturo;
-    })
-    : [];
+  if (loading) {
+    return <div className="p-8 text-center text-gray-500">Carregando painel...</div>;
+  }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-      {mensagemDoDia && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs uppercase font-semibold text-amber-800">
-            {mensagemDoDia.titulo || 'Mensagem do administrador'}
+    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+      {/* Mensagem do Dia */}
+      {mensagem && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-amber-800 mb-2">
+            {mensagem.titulo || 'Recado Importante'}
+          </h2>
+          <p className="text-amber-900 leading-relaxed whitespace-pre-wrap">
+            {mensagem.conteudo}
           </p>
-          <p className="text-sm text-amber-900">{mensagemDoDia.conteudo}</p>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Jogos</h1>
-          <p className="text-sm text-gray-600">Escolha um bolão ativo e filtre status</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            value={bolaoFiltro}
-            onChange={e => {
-              const next = e.target.value;
-              setBolaoFiltro(next);
-              setRodadaFiltro('');
-              setStatusFiltro('');
-              setDataFiltro('');
-              setInfo(next ? `Bolão selecionado.` : null);
-              setPalpitesPorJogo({});
-              setPalpitesAbertos([]);
-              setMeusPalpites({});
-              setFormPalpite({});
-              setFeedback({});
-            }}
-          >
-            <option value="">Selecione um bolão</option>
-            {boloes.map(b => (
-              <option key={b.id} value={b.id}>
-                {b.nome}
-              </option>
+      {/* Meus Bolões */}
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Image src="/assets/icon-podium.png" width={28} height={28} alt="Bolões" /> Meus Bolões
+        </h2>
+        {boloes.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center bg-white">
+            <p className="text-gray-600 mb-4">Você ainda não participa de nenhum bolão.</p>
+            <Link
+              href="/boloes"
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+            >
+              Encontrar Bolões
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {boloes.map((bolao) => (
+              <div
+                key={bolao.id}
+                className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-gray-900 truncate pr-2" title={bolao.nome}>
+                    {bolao.nome}
+                  </h3>
+                  <span className="bg-primary-50 text-primary-700 text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap">
+                    {pontosPorBolao[bolao.id] ?? 0} pts
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 mb-4 line-clamp-2">
+                  {bolao.descricao || 'Sem descrição'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 mt-auto">
+                  <Link
+                    href={`/jogos?bolaoId=${bolao.id}`}
+                    className="flex items-center justify-center px-3 py-2 border border-primary-200 text-sm font-medium rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors"
+                  >
+                    Palpites
+                  </Link>
+                  <Link
+                    href={`/ranking?bolaoId=${bolao.id}`}
+                    className="flex items-center justify-center px-3 py-2 border border-white text-sm font-medium rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                  >
+                    Ranking
+                  </Link>
+                </div>
+              </div>
             ))}
-          </select>
-        </div>
+          </div>
+        )}
       </div>
 
-      {info && <p className="text-sm text-green-700">{info}</p>}
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
-      {loading && <p className="text-sm text-gray-600">Carregando jogos...</p>}
-
-      {!hasSelection && (
-        <div className="rounded-xl border border-dashed border-gray-300 p-4 bg-white">
-          <p className="text-sm text-gray-700 mb-3">
-            Selecione um bolão para ver e registrar palpites.
-          </p>
-          {boloes.length === 0 ? (
-            <p className="text-sm text-gray-600">
-              Você ainda não participa de nenhum bolão.{' '}
-              <Link href="/boloes" className="text-primary-700 underline">
-                Ver bolões disponíveis
-              </Link>
-              .
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {boloes.map(b => (
-                <button
-                  key={b.id}
-                  className="px-4 py-2 rounded-lg border border-primary-200 text-primary-700 text-sm hover:bg-primary-50"
-                  onClick={() => {
-                    setBolaoFiltro(b.id);
-                    setInfo(`Bolão selecionado: ${b.nome}.`);
-                    setPalpitesPorJogo({});
-                    setPalpitesAbertos([]);
-                    setMeusPalpites({});
-                    setFormPalpite({});
-                    setFeedback({});
-                  }}
-                >
-                  Selecionar {b.nome}
-                </button>
-              ))}
-            </div>
-          )}
+      {/* Atalhos Rápidos */}
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Acesso Rápido</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Link href="/jogos" className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all text-center">
+            <Image src="/assets/icon-chuveiro.png" width={40} height={40} alt="Jogos" className="mb-2" />
+            <span className="font-semibold text-gray-800">Jogos</span>
+          </Link>
+          <Link href="/ranking" className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all text-center">
+            <Image src="/assets/icon-podium.png" width={40} height={40} alt="Ranking" className="mb-2" />
+            <span className="font-semibold text-gray-800">Ranking</span>
+          </Link>
+          <Link href="/boloes" className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all text-center">
+            <Image src="/assets/icon-pato.png" width={40} height={40} alt="Bolões" className="mb-2" />
+            <span className="font-semibold text-gray-800">Bolões</span>
+          </Link>
+          <Link href="/campeoes" className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all text-center">
+            <Image src="/assets/icon-jornal.png" width={40} height={40} alt="Campeões" className="mb-2" />
+            <span className="font-semibold text-gray-800">Campeões</span>
+          </Link>
         </div>
-      )}
-
-      {hasSelection && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 flex flex-wrap items-center gap-3 text-sm">
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-500">Rodada</span>
-            <select
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              value={rodadaFiltro}
-              onChange={e => setRodadaFiltro(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {rodadas
-                .filter((r: any) => r.ativo !== false)
-                .map(r => (
-                  <option key={r.id} value={r.id}>
-                    {r.nome}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-500">Status</span>
-            <select
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              value={statusFiltro}
-              onChange={e => setStatusFiltro(e.target.value)}
-            >
-              <option value="">Todos</option>
-              <option value="PALPITES">Palpites</option>
-              <option value="EM_ANDAMENTO">Em andamento</option>
-              <option value="ENCERRADO">Encerrados</option>
-            </select>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-500">Data</span>
-            <input
-              type="date"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              value={dataFiltro}
-              onChange={e => setDataFiltro(e.target.value)}
-            />
-          </div>
-          <button
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            type="button"
-            onClick={() => {
-              const hoje = new Date().toISOString().slice(0, 10);
-              setDataFiltro(hoje);
-            }}
-          >
-            Jogos do Dia
-          </button>
-          <button
-            className={`rounded-lg border px-3 py-2 text-sm ${futuroFiltro
-                ? 'border-primary-200 bg-primary-50 text-primary-700'
-                : 'border-gray-200 text-gray-700'
-              }`}
-            type="button"
-            onClick={() => setFuturoFiltro(prev => !prev)}
-          >
-            A Realizar
-          </button>
-          <button
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            type="button"
-            onClick={() => {
-              setRodadaFiltro('');
-              setStatusFiltro('');
-              setDataFiltro('');
-              setFuturoFiltro(false);
-            }}
-          >
-            Limpar filtros
-          </button>
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {filtrados.map(jogo => {
-          const diffMinutes = (new Date(jogo.dataHora).getTime() - Date.now()) / 60000;
-          const bloqueado = jogo.status !== 'PALPITES' || diffMinutes < 15;
-          const statusBadge =
-            jogo.status === 'PALPITES'
-              ? 'bg-green-50 text-green-700'
-              : jogo.status === 'EM_ANDAMENTO'
-                ? 'bg-yellow-50 text-yellow-800'
-                : 'bg-gray-100 text-gray-700';
-          const saved = meusPalpites[jogo.id];
-          const form = formPalpite[jogo.id] || saved || { golsCasa: 0, golsFora: 0 };
-          const aberto = palpitesAbertos.includes(jogo.id);
-          const palpitesState = palpitesPorJogo[jogo.id];
-
-          const togglePalpites = async () => {
-            if (aberto) {
-              setPalpitesAbertos(prev => prev.filter(id => id !== jogo.id));
-              return;
-            }
-            setPalpitesAbertos(prev => [...prev, jogo.id]);
-            await carregarPalpitesJogo(jogo.id);
-          };
-
-          return (
-            <div
-              key={jogo.id}
-              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm flex flex-col gap-2"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-xs uppercase tracking-wide text-gray-500">
-                  {jogo.bolao?.nome || 'Bolão'} • {jogo.rodada?.nome || 'Rodada'}
-                </div>
-                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusBadge}`}>
-                  {jogo.status}
-                </span>
-              </div>
-              <div className="text-lg font-semibold">
-                {jogo.timeCasa?.nome} x {jogo.timeFora?.nome}
-              </div>
-              {jogo.status === 'ENCERRADO' && (
-                <p className="text-sm font-semibold text-gray-800">
-                  Placar: {jogo.resultadoCasa ?? '-'} x {jogo.resultadoFora ?? '-'}{' '}
-                  {jogo.mataMata &&
-                    jogo.resultadoCasa === jogo.resultadoFora &&
-                    jogo.vencedorPenaltis
-                    ? `(${jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'} nos pênaltis)`
-                    : ''}
-                </p>
-              )}
-              <p className="text-sm text-gray-500">
-                {new Date(jogo.dataHora).toLocaleString('pt-BR')}
-              </p>
-              <p className="text-xs text-gray-600">
-                {bloqueado
-                  ? jogo.status === 'PALPITES'
-                    ? `Palpites bloqueados (faltam ${Math.max(0, Math.round(diffMinutes))} min)`
-                    : 'Palpites encerrados'
-                  : `Palpites liberados (faltam ${Math.round(diffMinutes)} min)`}
-              </p>
-              {feedback[jogo.id] && (
-                <p
-                  className={`text-xs ${feedback[jogo.id].tipo === 'ok' ? 'text-green-700' : 'text-red-600'
-                    }`}
-                >
-                  {feedback[jogo.id].msg}
-                </p>
-              )}
-              {jogo.status === 'ENCERRADO' && saved?.pontuacao !== undefined && (
-                <p className="text-xs text-emerald-700 font-semibold">
-                  Sua pontuação: {saved.pontuacao ?? 0}
-                </p>
-              )}
-              {jogo.status === 'PALPITES' && (
-                <form
-                  className="mt-2 grid grid-cols-2 gap-2"
-                  onSubmit={e => {
-                    e.preventDefault();
-                    handlePalpite(jogo);
-                  }}
-                >
-                  <div>
-                    <label className="text-xs text-gray-600">Gols casa</label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="w-full border rounded-lg px-2 py-1 text-sm"
-                      value={form.golsCasa}
-                      onChange={e =>
-                        setFormPalpite({
-                          ...formPalpite,
-                          [jogo.id]: { ...form, golsCasa: Number(e.target.value) },
-                        })
-                      }
-                      disabled={bloqueado}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">Gols fora</label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="w-full border rounded-lg px-2 py-1 text-sm"
-                      value={form.golsFora}
-                      onChange={e =>
-                        setFormPalpite({
-                          ...formPalpite,
-                          [jogo.id]: { ...form, golsFora: Number(e.target.value) },
-                        })
-                      }
-                      disabled={bloqueado}
-                    />
-                  </div>
-                  {jogo.mataMata && (
-                    <div className="col-span-2">
-                      <label className="text-xs text-gray-600">Vencedor nos pênaltis</label>
-                      <select
-                        className="w-full border rounded-lg px-2 py-1 text-sm"
-                        value={form.vencedorPenaltis || ''}
-                        onChange={e =>
-                          setFormPalpite({
-                            ...formPalpite,
-                            [jogo.id]: {
-                              ...form,
-                              vencedorPenaltis: e.target.value
-                                ? (e.target.value as 'CASA' | 'FORA')
-                                : undefined,
-                            },
-                          })
-                        }
-                        disabled={bloqueado}
-                      >
-                        <option value="">Selecione</option>
-                        <option value="CASA">Casa</option>
-                        <option value="FORA">Fora</option>
-                      </select>
-                      <p className="text-[11px] text-gray-500 mt-1">
-                        Opcional — use apenas se acredita em decisão nos pênaltis.
-                      </p>
-                    </div>
-                  )}
-                  <button
-                    type="submit"
-                    className="col-span-2 bg-primary-600 text-white rounded-lg px-3 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-60"
-                    disabled={bloqueado}
-                  >
-                    {saved ? 'Atualizar palpite' : 'Salvar palpite'}
-                  </button>
-                </form>
-              )}
-              {jogo.status !== 'PALPITES' && saved && (
-                <p className="text-xs text-gray-700">
-                  Seu palpite: {saved.golsCasa}x{saved.golsFora}{' '}
-                  {jogo.mataMata && saved.vencedorPenaltis
-                    ? `(${saved.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'} nos pênaltis)`
-                    : ''}
-                </p>
-              )}
-
-              <button
-                type="button"
-                className="text-sm text-primary-700 hover:text-primary-800 mt-1"
-                onClick={togglePalpites}
-              >
-                {aberto ? 'Esconder palpites' : 'Ver palpites'}
-              </button>
-              {aberto && (
-                <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 text-sm">
-                  {palpitesState?.loading && <p className="text-gray-600">Carregando palpites...</p>}
-                  {palpitesState?.erro && <p className="text-red-600">{palpitesState.erro}</p>}
-                  {!palpitesState?.loading && !palpitesState?.dados && (
-                    <p className="text-gray-600">Carregando palpites...</p>
-                  )}
-                  {palpitesState?.dados && palpitesState.dados.length === 0 && (
-                    <p className="text-gray-600">Nenhum palpite disponível.</p>
-                  )}
-                  {palpitesState?.dados && palpitesState.dados.length > 0 && (
-                    <div className="space-y-1">
-                      {jogo.status === 'PALPITES' && (
-                        <p className="text-xs text-gray-600">
-                          Outros palpites serão exibidos após o início do jogo.
-                        </p>
-                      )}
-                      {palpitesState.dados.map((p: any) => (
-                        <div key={p.id} className="flex items-center justify-between rounded-md bg-white px-2 py-1">
-                          <span className="font-medium text-gray-800 text-sm">{p.usuario?.nome || 'Usuário'}</span>
-                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <span>
-                              {p.golsCasa}x{p.golsFora}
-                              {jogo.mataMata && p.vencedorPenaltis
-                                ? ` (${p.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'} nos pênaltis)`
-                                : ''}
-                            </span>
-                            {typeof p.pontuacao === 'number' && jogo.status === 'ENCERRADO' && (
-                              <span className="text-xs text-emerald-700 font-semibold">
-                                {p.pontuacao} pts
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {filtrados.length === 0 && !loading && (
-          <p className="text-sm text-gray-600">Nenhum jogo para os filtros selecionados.</p>
-        )}
       </div>
     </div>
   );

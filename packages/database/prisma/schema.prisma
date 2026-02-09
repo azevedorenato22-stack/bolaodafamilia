@@ -14,7 +14,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://neondb_owner:npg_DAPRrZT1Fv2e@ep-round-water-aih8mxs6-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require"
 }
 
 // ============================================
@@ -51,8 +51,8 @@ enum VencedorPenaltis {
 model Usuario {
   id        String       @id @default(uuid()) @db.Uuid
   nome      String       @db.VarChar(255)
-  usuario   String       @unique @db.VarChar(100)
-  email     String       @unique @db.VarChar(255)
+  usuario   String?      @unique @db.VarChar(100) // Opcional, gerado auto ou nao usado
+  email     String?      @unique @db.VarChar(255) // Opcional
   senha     String       @db.VarChar(255) // Hash bcrypt
   tipo      TipoUsuario  @default(USUARIO)
   ativo     Boolean      @default(true)
@@ -65,6 +65,7 @@ model Usuario {
   palpites        Palpite[]
   palpitesCampeao PalpiteCampeao[]
   boloes          BolaoUsuario[]
+  mensagensCriadas MensagemDia[] @relation("CriadoPor")
 
   // Índices para performance
   @@index([usuario])
@@ -87,12 +88,15 @@ model Bolao {
   ativo              Boolean  @default(true)
   
   // Parâmetros de pontuação configuráveis por bolão
-  ptsResultadoExato  Int      @default(10) @map("pts_resultado_exato") @db.SmallInt
-  ptsVencedorGols    Int      @default(6)  @map("pts_vencedor_gols") @db.SmallInt
-  ptsVencedor        Int      @default(3)  @map("pts_vencedor") @db.SmallInt
-  ptsGolsTime        Int      @default(2)  @map("pts_gols_time") @db.SmallInt
+  ptsResultadoExato  Int      @default(25) @map("pts_resultado_exato") @db.SmallInt
+  ptsVencedorGols    Int      @default(18) @map("pts_vencedor_gols") @db.SmallInt // PV
+  ptsDiferencaGols   Int      @default(15) @map("pts_diferenca_gols") @db.SmallInt // DG
+  ptsEmpateExato     Int      @default(25) @map("pts_empate_exato") @db.SmallInt // Novo: Empate Exato (ex: 1x1 palpite 1x1)
+  ptsEmpate          Int      @default(15) @map("pts_empate") @db.SmallInt // Novo: Empate não exato (ex: 1x1 palpite 2x2)
+  ptsVencedor        Int      @default(10) @map("pts_vencedor") @db.SmallInt // VS
+  ptsPlacarPerdedor  Int      @default(12) @map("pts_placar_perdedor") @db.SmallInt // PP
   ptsCampeao         Int      @default(20) @map("pts_campeao") @db.SmallInt
-  ptsPenaltis        Int      @default(1)  @map("pts_penaltis") @db.SmallInt
+  ptsPenaltis        Int      @default(10) @map("pts_penaltis") @db.SmallInt // Valor configurável
   
   // Auditoria
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -120,10 +124,11 @@ model Bolao {
 model Time {
   id         String  @id @default(uuid()) @db.Uuid
   nome       String  @db.VarChar(255)
-  categoria  String  @db.VarChar(100) // Ex: "Série A", "Copa do Mundo", "Premier League"
+  categoria  String  @db.VarChar(100)
   escudoUrl  String? @map("escudo_url") @db.VarChar(500)
-  sigla      String? @db.VarChar(10) // Ex: "FLA", "PAL", "COR"
-  
+  sigla      String? @db.VarChar(10)
+  ativo      Boolean @default(true) // Novo campo para filtro
+
   // Auditoria
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -135,14 +140,34 @@ model Time {
   palpitesCampeao PalpiteCampeao[]
   campeaoVencedor Campeao[]        @relation("CampeaoVencedor")
 
-  // Constraints e índices
-  @@unique([nome, categoria], name: "unique_time_categoria")
-  @@index([nome])
-  @@index([categoria])
-  @@index([sigla])
+  categorias CategoriaTime[]
+
+  @@unique([nome]) // Nome deve ser único globalmente agora
+  @@index([ativo])
   
   @@map("times")
 }
+
+
+model Categoria {
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String   @unique @db.VarChar(100)
+  times     CategoriaTime[]
+  
+  @@map("categorias")
+}
+
+model CategoriaTime {
+  categoriaId String   @map("categoria_id") @db.Uuid
+  timeId      String   @map("time_id") @db.Uuid
+  
+  categoria   Categoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  time        Time      @relation(fields: [timeId], references: [id], onDelete: Cascade)
+
+  @@id([categoriaId, timeId])
+  @@map("categorias_times")
+}
+
 
 /// Relação N:N entre Bolão e Time
 /// @description Associa times a bolões específicos (um time pode participar de múltiplos bolões)
@@ -216,13 +241,10 @@ model BolaoUsuario {
   @@map("bolao_usuarios")
 }
 
-/// Rodadas (fases das competições)
-/// @description Agrupa jogos por rodada/fase (ex: Rodada 1, Quartas, Semifinal)
-/// @constraints Nome único global, ordem numérica opcional
 model Rodada {
   id            String   @id @default(uuid()) @db.Uuid
   nome          String   @unique @db.VarChar(100) // Ex: "Rodada 1", "Quartas de Final", "Final"
-  numeroOrdem   Int?     @map("numero_ordem") @db.SmallInt // Ordenação opcional
+  numeroOrdem   Int?     @map("numero_ordem")
   descricao     String?  @db.Text
   ativo         Boolean  @default(true)
   
@@ -236,7 +258,7 @@ model Rodada {
 
   // Índices
   @@index([nome])
-  @@index([numeroOrdem])
+  @@index([ativo])
   
   @@map("rodadas")
 }
@@ -411,8 +433,9 @@ model MensagemDia {
   dataFim    DateTime? @map("data_fim") @db.Timestamptz(3)
   
   // Auditoria
-  criadoPor String?  @map("criado_por") @db.Uuid // Referência ao admin que criou
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  criadoPorId String?  @map("criado_por") @db.Uuid // Referência ao admin que criou
+  criadoPor   Usuario? @relation("CriadoPor", fields: [criadoPorId], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   // Índices

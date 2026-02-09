@@ -23,12 +23,15 @@ type RankingRow = {
   pv: number; // vencedor + gols / vencedor simples / empate
   dg: number; // diferença de gols acertada
   pp: number; // placar perdedor / gols time
+  em: number; // empates não exatos
   v: number; // vitórias (vencedor correto)
+  e: number; // erros (nenhum ponto)
+  penaltis: number; // penaltis acertados
 };
 
 @Injectable()
 export class RankingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private parseDateOnlyToLocalRange(data?: string) {
     if (!data) return null;
@@ -56,11 +59,10 @@ export class RankingService {
   private ordenar(rows: RankingRow[]) {
     return rows
       .sort((a, b) => {
-        if (b.pontosTotal !== a.pontosTotal)
-          return b.pontosTotal - a.pontosTotal;
-        if (b.pontosJogos !== a.pontosJogos)
-          return b.pontosJogos - a.pontosJogos;
+        if (b.pontosCampeao !== a.pontosCampeao)
+          return b.pontosCampeao - a.pontosCampeao; // 1. Pontos Campeão (Plan says this first? "Critérios: Pontos Campeão, PC, EM, PV, DG, PP, V")
         if (b.pc !== a.pc) return b.pc - a.pc;
+        if (b.em !== a.em) return b.em - a.em;
         if (b.pv !== a.pv) return b.pv - a.pv;
         if (b.dg !== a.dg) return b.dg - a.dg;
         if (b.pp !== a.pp) return b.pp - a.pp;
@@ -75,20 +77,21 @@ export class RankingService {
   private mapTipoPontuacao(tipoPontuacao?: string | null) {
     switch (tipoPontuacao) {
       case "placar_exato":
-        return { pc: 1, pv: 0, dg: 0, pp: 0, v: 1 };
+        return { pc: 1, pv: 0, dg: 0, pp: 0, em: 0, v: 1, e: 0 };
       case "placar_vencedor":
-        return { pc: 0, pv: 1, dg: 0, pp: 0, v: 1 };
+        return { pc: 0, pv: 1, dg: 0, pp: 0, em: 0, v: 1, e: 0 };
       case "diferenca_gols":
-        return { pc: 0, pv: 0, dg: 1, pp: 0, v: 1 };
-      case "empate":
-        return { pc: 0, pv: 1, dg: 0, pp: 0, v: 0 };
-      case "vencedor_simples":
-        return { pc: 0, pv: 1, dg: 0, pp: 0, v: 1 };
+        return { pc: 0, pv: 0, dg: 1, pp: 0, em: 0, v: 1, e: 0 };
       case "placar_perdedor":
-      case "gols_time":
-        return { pc: 0, pv: 0, dg: 0, pp: 1, v: 0 };
+        return { pc: 0, pv: 0, dg: 0, pp: 1, em: 0, v: 1, e: 0 };
+      case "vencedor_simples":
+        return { pc: 0, pv: 0, dg: 0, pp: 0, em: 0, v: 1, e: 0 };
+      case "empate":
+        return { pc: 0, pv: 0, dg: 0, pp: 0, em: 1, v: 0, e: 0 };
+      case "errou":
+        return { pc: 0, pv: 0, dg: 0, pp: 0, em: 0, v: 0, e: 1 };
       default:
-        return { pc: 0, pv: 0, dg: 0, pp: 0, v: 0 };
+        return { pc: 0, pv: 0, dg: 0, pp: 0, em: 0, v: 0, e: 0 };
     }
   }
 
@@ -129,11 +132,11 @@ export class RankingService {
     const dateRange = this.parseDateOnlyToLocalRange(data);
     const dateFilter = dateRange
       ? {
-          dataHora: {
-            gte: dateRange.start,
-            lte: dateRange.end,
-          },
-        }
+        dataHora: {
+          gte: dateRange.start,
+          lte: dateRange.end,
+        },
+      }
       : {};
 
     const palpitesJogos = await this.prisma.palpite.findMany({
@@ -150,6 +153,8 @@ export class RankingService {
         usuarioId: true,
         pontuacao: true,
         tipoPontuacao: true,
+        vencedorPenaltis: true,
+        jogo: { select: { vencedorPenaltis: true } }
       },
     });
 
@@ -187,7 +192,10 @@ export class RankingService {
         pv: 0,
         dg: 0,
         pp: 0,
+        em: 0,
         v: 0,
+        e: 0,
+        penaltis: 0,
       };
     }
 
@@ -200,7 +208,18 @@ export class RankingService {
       base[p.usuarioId].pv += bucket.pv;
       base[p.usuarioId].dg += bucket.dg;
       base[p.usuarioId].pp += bucket.pp;
+      base[p.usuarioId].em += bucket.em;
       base[p.usuarioId].v += bucket.v;
+      base[p.usuarioId].e += bucket.e;
+
+      // Check if penalty points were awarded (heuristic: verify if user guessed penalty correctly AND game had penalties)
+      // Actually, pontuacao.ts adds points but doesn't store "acertouPenaltis" boolean in DB separately,
+      // but we can infer or we should have saved it?
+      // For now, we rely on the pointsTotal.
+      // But we want to track 'penaltis' count.
+      if (p.vencedorPenaltis && p.jogo?.vencedorPenaltis && p.vencedorPenaltis === p.jogo.vencedorPenaltis) {
+        base[p.usuarioId].penaltis += 1;
+      }
     }
 
     for (const p of palpitesCampeao) {
@@ -269,8 +288,45 @@ export class RankingService {
       orderBy: { createdAt: "asc" },
     });
 
+    let resumo = {
+      pontosTotal: 0,
+      pontosJogos: 0,
+      pontosCampeao: 0,
+      pc: 0,
+      pv: 0,
+      dg: 0,
+      pp: 0,
+      em: 0,
+      v: 0,
+      e: 0,
+      penaltis: 0,
+    };
+
+    for (const p of palpitesJogos) {
+      resumo.pontosJogos += p.pontuacao ?? 0;
+      resumo.pontosTotal += p.pontuacao ?? 0;
+      const bucket = this.mapTipoPontuacao(p.tipoPontuacao);
+      resumo.pc += bucket.pc;
+      resumo.pv += bucket.pv;
+      resumo.dg += bucket.dg;
+      resumo.pp += bucket.pp;
+      resumo.em += bucket.em;
+      resumo.v += bucket.v;
+      resumo.e += bucket.e;
+
+      if (p.vencedorPenaltis && p.jogo?.vencedorPenaltis && p.vencedorPenaltis === p.jogo.vencedorPenaltis) {
+        resumo.penaltis += 1;
+      }
+    }
+
+    for (const p of palpitesCampeao) {
+      resumo.pontosCampeao += p.pontuacao ?? 0;
+      resumo.pontosTotal += p.pontuacao ?? 0;
+    }
+
     return {
       bolao: { id: bolao.id, nome: bolao.nome },
+      resumo,
       palpitesJogos,
       palpitesCampeao,
     };

@@ -14,14 +14,13 @@ export class CreateUserDto {
   @IsNotEmpty({ message: "Nome é obrigatório" })
   nome: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: "Usuário é obrigatório" })
-  @MinLength(3, { message: "Usuário deve ter pelo menos 3 caracteres" })
-  usuario: string;
+  usuario?: string;
 
+  @IsOptional()
   @IsEmail({}, { message: "Email inválido" })
-  @IsNotEmpty({ message: "Email é obrigatório" })
-  email: string;
+  email?: string;
 
   @IsString()
   @IsNotEmpty({ message: "Senha é obrigatória" })

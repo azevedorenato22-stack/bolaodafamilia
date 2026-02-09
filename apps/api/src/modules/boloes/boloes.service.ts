@@ -13,7 +13,7 @@ import { Prisma, TipoUsuario } from "@prisma/client";
 
 @Injectable()
 export class BoloesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private getBolaoInclude(options?: {
     includeParticipantes?: boolean;
@@ -45,21 +45,21 @@ export class BoloesService {
       },
       ...(includeParticipantes
         ? {
-            participantes: {
-              include: {
-                usuario: {
-                  select: {
-                    id: true,
-                    nome: true,
-                    usuario: true,
-                    email: true,
-                    tipo: true,
-                    ativo: true,
-                  },
+          participantes: {
+            include: {
+              usuario: {
+                select: {
+                  id: true,
+                  nome: true,
+                  usuario: true,
+                  email: true,
+                  tipo: true,
+                  ativo: true,
                 },
               },
             },
-          }
+          },
+        }
         : {}),
       _count: {
         select: {
@@ -240,10 +240,13 @@ export class BoloesService {
         descricao: bolaoData.descricao,
         dataFinal,
         ativo: bolaoData.ativo ?? true,
-        ptsResultadoExato: bolaoData.pts_resultado_exato ?? 10,
-        ptsVencedorGols: bolaoData.pts_vencedor_gols ?? 6,
-        ptsVencedor: bolaoData.pts_vencedor ?? 3,
-        ptsGolsTime: bolaoData.pts_gols_time ?? 2,
+        ptsResultadoExato: bolaoData.pts_resultado_exato ?? 25,
+        ptsVencedorGols: bolaoData.pts_vencedor_gols ?? 18,
+        ptsDiferencaGols: bolaoData.pts_diferenca_gols ?? 15,
+        ptsEmpateExato: bolaoData.pts_empate_exato ?? 25,
+        ptsEmpate: bolaoData.pts_empate ?? 15,
+        ptsVencedor: bolaoData.pts_vencedor ?? 10,
+        ptsPlacarPerdedor: bolaoData.pts_placar_perdedor ?? 12,
         ptsCampeao: bolaoData.pts_campeao ?? 20,
         ptsPenaltis: bolaoData.pts_penaltis ?? 1,
       },
@@ -483,16 +486,19 @@ export class BoloesService {
           descricao: updateBolaoDto.descricao,
           dataFinal: updateBolaoDto.dataFim
             ? (() => {
-                const df = new Date(updateBolaoDto.dataFim as string);
-                df.setHours(23, 59, 59, 999);
-                return df;
-              })()
+              const df = new Date(updateBolaoDto.dataFim as string);
+              df.setHours(23, 59, 59, 999);
+              return df;
+            })()
             : undefined,
           ativo: updateBolaoDto.ativo,
           ptsResultadoExato: updateBolaoDto.pts_resultado_exato,
           ptsVencedorGols: updateBolaoDto.pts_vencedor_gols,
+          ptsDiferencaGols: updateBolaoDto.pts_diferenca_gols,
+          ptsEmpateExato: updateBolaoDto.pts_empate_exato,
+          ptsEmpate: updateBolaoDto.pts_empate,
           ptsVencedor: updateBolaoDto.pts_vencedor,
-          ptsGolsTime: updateBolaoDto.pts_gols_time,
+          ptsPlacarPerdedor: updateBolaoDto.pts_placar_perdedor,
           ptsCampeao: updateBolaoDto.pts_campeao,
           ptsPenaltis: updateBolaoDto.pts_penaltis,
         },
@@ -642,8 +648,11 @@ export class BoloesService {
         nome: true,
         ptsResultadoExato: true,
         ptsVencedorGols: true,
+        ptsDiferencaGols: true,
+        ptsEmpateExato: true,
+        ptsEmpate: true,
         ptsVencedor: true,
-        ptsGolsTime: true,
+        ptsPlacarPerdedor: true,
         ptsCampeao: true,
         ptsPenaltis: true,
       },
@@ -658,8 +667,11 @@ export class BoloesService {
       nome: bolao.nome,
       pts_resultado_exato: bolao.ptsResultadoExato,
       pts_vencedor_gols: bolao.ptsVencedorGols,
+      pts_diferenca_gols: bolao.ptsDiferencaGols,
+      pts_empate_exato: bolao.ptsEmpateExato,
+      pts_empate: bolao.ptsEmpate,
       pts_vencedor: bolao.ptsVencedor,
-      pts_gols_time: bolao.ptsGolsTime,
+      pts_placar_perdedor: bolao.ptsPlacarPerdedor,
       pts_campeao: bolao.ptsCampeao,
       pts_penaltis: bolao.ptsPenaltis,
     };

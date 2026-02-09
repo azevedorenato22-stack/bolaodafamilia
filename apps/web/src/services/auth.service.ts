@@ -1,7 +1,7 @@
 import api from '../lib/api';
 
-type LoginPayload = { usuario: string; senha: string };
-type RegisterPayload = { nome: string; usuario: string; email: string; senha: string };
+type LoginPayload = { nome: string; senha: string };
+type RegisterPayload = { nome: string; senha: string };
 
 export async function login(payload: LoginPayload) {
   const { data } = await api.post('/api/auth/login', payload);

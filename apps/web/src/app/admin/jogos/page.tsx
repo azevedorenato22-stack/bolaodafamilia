@@ -116,7 +116,7 @@ export default function AdminJogosPage() {
       if (editingId) {
         await atualizarJogo(editingId, {
           ...form,
-          dataHora: form.dataHora,
+          dataHora: new Date(form.dataHora).toISOString(),
           resultadoCasa: form.resultadoCasa === '' ? undefined : Number(form.resultadoCasa),
           resultadoFora: form.resultadoFora === '' ? undefined : Number(form.resultadoFora),
           vencedorPenaltis: form.vencedorPenaltis || undefined,
@@ -125,7 +125,7 @@ export default function AdminJogosPage() {
       } else {
         await criarJogo({
           ...form,
-          dataHora: form.dataHora,
+          dataHora: new Date(form.dataHora).toISOString(),
           resultadoCasa: form.resultadoCasa === '' ? undefined : Number(form.resultadoCasa),
           resultadoFora: form.resultadoFora === '' ? undefined : Number(form.resultadoFora),
           vencedorPenaltis: form.vencedorPenaltis || undefined,
@@ -204,8 +204,8 @@ export default function AdminJogosPage() {
             <button
               type="button"
               className={`rounded-md border px-2 py-1 text-sm ${filters.periodo === 'HOJE'
-                  ? 'bg-primary-50 border-primary-200 text-primary-700'
-                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                ? 'bg-primary-50 border-primary-200 text-primary-700'
+                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
               onClick={async () => {
                 const hoje = formatDateForInput(new Date());
@@ -219,8 +219,8 @@ export default function AdminJogosPage() {
             <button
               type="button"
               className={`rounded-md border px-2 py-1 text-sm ${filters.periodo === 'FUTURO'
-                  ? 'bg-primary-50 border-primary-200 text-primary-700'
-                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                ? 'bg-primary-50 border-primary-200 text-primary-700'
+                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
               onClick={async () => {
                 const next: FiltersState = { ...filters, data: '', periodo: 'FUTURO' };
@@ -427,7 +427,7 @@ export default function AdminJogosPage() {
                 .filter(t =>
                   boloes
                     .find(b => b.id === form.bolaoId)
-                    ?.times?.some((bt: any) => bt.id === t.id || bt.timeId === t.id),
+                    ?.times?.some((bt: any) => bt.id === t.id || bt.time?.id === t.id || bt.timeId === t.id),
                 )
                 .map(t => (
                   <option key={t.id} value={t.id}>
@@ -448,7 +448,7 @@ export default function AdminJogosPage() {
                 .filter(t =>
                   boloes
                     .find(b => b.id === form.bolaoId)
-                    ?.times?.some((bt: any) => bt.id === t.id || bt.timeId === t.id),
+                    ?.times?.some((bt: any) => bt.id === t.id || bt.time?.id === t.id || bt.timeId === t.id),
                 )
                 .map(t => (
                   <option key={t.id} value={t.id}>
@@ -486,8 +486,8 @@ export default function AdminJogosPage() {
               value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value as StatusJogo })}
             >
-              <option value="PALPITES">Palpites</option>
-              <option value="EM_ANDAMENTO">Em andamento</option>
+              <option value="PALPITES">Aberto / Palpites</option>
+              <option value="EM_ANDAMENTO">Em andamento (Travado)</option>
               <option value="ENCERRADO">Encerrado</option>
             </select>
           </div>

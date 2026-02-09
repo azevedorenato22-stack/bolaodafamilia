@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Param,
   UseGuards,
 } from "@nestjs/common";
 import { MensagemDiaService } from "./mensagem-dia.service";
@@ -20,25 +21,34 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 @Controller("mensagem-dia")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MensagemDiaController {
-  constructor(private readonly mensagemDiaService: MensagemDiaService) {}
+  constructor(private readonly mensagemDiaService: MensagemDiaService) { }
+
+  @Get()
+  @Public()
+  findActive() {
+    return this.mensagemDiaService.findActive();
+  }
 
   @Post()
   @Roles(TipoUsuario.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   create(@Body() dto: CreateMensagemDiaDto, @CurrentUser() user: any) {
-    return this.mensagemDiaService.upsert(dto, user?.id);
+    console.log('[DEBUG] Recebido dto:', JSON.stringify(dto));
+    console.log('[DEBUG] User:', user?.id);
+    return this.mensagemDiaService.create(dto, user?.id);
   }
 
-  @Delete()
+  @Get("admin")
+  @Roles(TipoUsuario.ADMIN)
+  findAll() {
+    return this.mensagemDiaService.findAll();
+  }
+
+  @Delete(":id")
   @Roles(TipoUsuario.ADMIN)
   @HttpCode(HttpStatus.OK)
-  remove() {
-    return this.mensagemDiaService.remove();
-  }
-
-  @Get()
-  @Public()
-  getAtual() {
-    return this.mensagemDiaService.getAtual();
+  remove(@Param("id") id: string) {
+    return this.mensagemDiaService.remove(id);
   }
 }
+

@@ -14,7 +14,7 @@ import { calcularPontuacaoPalpite } from "../../lib/pontuacao";
 
 @Injectable()
 export class JogosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private readonly allowedTransitions: Record<StatusJogo, StatusJogo[]> = {
     // Permite encerrar direto sem passar por EM_ANDAMENTO (ex.: placar já conhecido).
@@ -257,7 +257,10 @@ export class JogosService {
             ptsResultadoExato: jogo.bolao.ptsResultadoExato,
             ptsVencedorGols: jogo.bolao.ptsVencedorGols,
             ptsVencedor: jogo.bolao.ptsVencedor,
-            ptsGolsTime: jogo.bolao.ptsGolsTime,
+            ptsDiferencaGols: jogo.bolao.ptsDiferencaGols,
+            ptsPlacarPerdedor: jogo.bolao.ptsPlacarPerdedor,
+            ptsEmpate: jogo.bolao.ptsEmpate,
+            ptsEmpateExato: jogo.bolao.ptsEmpateExato,
             ptsPenaltis: jogo.bolao.ptsPenaltis,
           },
           jogo: {
@@ -558,11 +561,11 @@ export class JogosService {
         status === StatusJogo.ENCERRADO
           ? { status }
           : {
-              status,
-              resultadoCasa: null,
-              resultadoFora: null,
-              vencedorPenaltis: null,
-            },
+            status,
+            resultadoCasa: null,
+            resultadoFora: null,
+            vencedorPenaltis: null,
+          },
       include: this.jogoInclude,
     });
 

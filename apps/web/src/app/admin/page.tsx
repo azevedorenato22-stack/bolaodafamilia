@@ -11,6 +11,7 @@ export default function AdminPage() {
   const [tipo, setTipo] = useState('info');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [msgId, setMsgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -19,6 +20,7 @@ export default function AdminPage() {
     mensagemAtual()
       .then(msg => {
         if (msg) {
+          setMsgId(msg.id ?? null);
           setTitulo(msg.titulo ?? '');
           setConteudo(msg.conteudo ?? '');
           setTipo(msg.tipo ?? 'info');
@@ -137,7 +139,10 @@ export default function AdminPage() {
               setFeedback(null);
               setErro(null);
               try {
-                await removerMensagem();
+                if (msgId) {
+                  await removerMensagem(msgId);
+                }
+                setMsgId(null);
                 setTitulo('');
                 setConteudo('');
                 setDataInicio('');

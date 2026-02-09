@@ -6,7 +6,7 @@ import express from 'express';
 
 const server = express();
 
-const createNestServer = async (expressInstance) => {
+const createNestServer = async (expressInstance: any) => {
   const app = await NestFactory.create(
     AppModule,
     new ExpressAdapter(expressInstance),
@@ -35,7 +35,7 @@ const createNestServer = async (expressInstance) => {
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
-  
+
   app.setGlobalPrefix('api');
 
   await app.init();

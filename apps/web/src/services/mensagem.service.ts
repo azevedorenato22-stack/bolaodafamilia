@@ -17,7 +17,12 @@ export async function salvarMensagem(payload: {
   return data;
 }
 
-export async function removerMensagem() {
-  const { data } = await api.delete('/api/mensagem-dia');
+export async function listarMensagens() {
+  const { data } = await api.get('/api/mensagem-dia/admin');
+  return data;
+}
+
+export async function removerMensagem(id: string) {
+  const { data } = await api.delete(`/api/mensagem-dia/${id}`);
   return data;
 }
