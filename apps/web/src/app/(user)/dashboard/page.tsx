@@ -125,7 +125,7 @@ export default function DashboardPage() {
                 className="group relative bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-xl hover:border-gray-400 transition-all hover:-translate-y-1 overflow-hidden"
               >
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
-                  <Image src="/assets/icon-chuveiro-oficial.png" width={80} height={80} alt="Background" />
+                  <Image src="/assets/icon-chuveiro-cam.jpg" width={80} height={80} alt="Background" />
                 </div>
 
                 <div className="relative z-10">

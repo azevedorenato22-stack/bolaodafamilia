@@ -42,7 +42,7 @@ export default function Home() {
           <div className="mb-6 inline-block relative">
             <div className="absolute inset-0 bg-gray-500/20 blur-2xl rounded-full" />
             <Image
-              src="/assets/icon-chuveiro-oficial.png"
+              src="/assets/icon-chuveiro-cam.jpg"
               width={100}
               height={100}
               alt="Bolão do Chuveiro Ligado"

@@ -20,7 +20,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="text-center mb-8">
             <div className="relative w-40 h-40 mx-auto mb-6 overflow-visible">
               <Image
-                src="/assets/icon-chuveiro-oficial.png"
+                src="/assets/icon-chuveiro-cam.jpg"
                 fill
                 alt="Bolão Chuveiro"
                 className="object-contain object-center drop-shadow-lg"
