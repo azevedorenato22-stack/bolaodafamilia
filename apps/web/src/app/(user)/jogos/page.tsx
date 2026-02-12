@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '../../providers';
 import { listarJogos, salvarPalpite, listarMeusPalpites } from '../../../services/jogos.service';
@@ -9,7 +9,7 @@ import { listarRodadas } from '../../../services/rodadas.service';
 import { GameCard } from './game-card';
 import Image from 'next/image';
 
-export default function JogosPage() {
+function JogosContent() {
     const { user } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -279,3 +279,15 @@ export default function JogosPage() {
     );
 }
 
+export default function JogosPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center flex-col items-center h-[50vh] gap-4">
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <span className="text-slate-400 text-sm font-bold animate-pulse">Carregando Jogos...</span>
+            </div>
+        }>
+            <JogosContent />
+        </Suspense>
+    );
+}
