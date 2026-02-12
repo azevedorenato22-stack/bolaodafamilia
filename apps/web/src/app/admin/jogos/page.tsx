@@ -597,10 +597,18 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
 
   return (
     <div className="py-4 border-b border-gray-100 last:border-0 relative">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div className="flex-1">
-          <p className="font-bold text-slate-800 flex items-center gap-2 text-lg">
-            {jogo.timeCasa?.nome} <span className="text-slate-300 font-light italic">vs</span> {jogo.timeFora?.nome}
+          <p className="font-bold text-slate-800 flex items-center justify-between md:justify-start gap-2 text-lg">
+            <span>
+              {jogo.timeCasa?.nome} <span className="text-slate-300 font-light italic">vs</span> {jogo.timeFora?.nome}
+            </span>
+            <span className={`md:hidden px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${jogo.status === 'PALPITES' ? 'bg-green-500 text-white' :
+              jogo.status === 'FECHADO' ? 'bg-amber-500 text-white' :
+                'bg-slate-500 text-white'
+              }`}>
+              {jogo.status === 'PALPITES' ? 'Aberto' : jogo.status === 'FECHADO' ? 'Fechado' : 'Encerrado'}
+            </span>
           </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 font-medium mt-1">
             <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded">{jogo.bolao?.nome}</span>
@@ -609,47 +617,47 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
             <span className="text-slate-400">{new Date(jogo.dataHora).toLocaleString('pt-BR')}</span>
           </div>
 
-          <div className="flex items-center gap-4 mt-3">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${jogo.status === 'PALPITES' ? 'bg-green-500 text-white' :
+          <div className="flex items-center gap-4 mt-3 bg-slate-50 md:bg-transparent p-3 md:p-0 rounded-xl border border-slate-100 md:border-0 justify-between md:justify-start">
+            <span className={`hidden md:inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${jogo.status === 'PALPITES' ? 'bg-green-500 text-white' :
               jogo.status === 'FECHADO' ? 'bg-amber-500 text-white' :
                 'bg-slate-500 text-white'
               }`}>
               {jogo.status === 'PALPITES' ? 'Aberto' : jogo.status === 'FECHADO' ? 'Fechado' : 'Encerrado'}
             </span>
-            <div className="flex items-center flex-wrap gap-2 text-sm text-slate-800">
+            <div className="flex items-center flex-wrap gap-4 text-sm text-slate-800 w-full md:w-auto justify-between md:justify-start">
               <span className="font-bold">{jogo.timeCasa.nome}</span>
               <div className="flex items-center gap-1">
-                <span className="bg-slate-100 px-2 py-1 rounded font-black min-w-[50px] text-center">
+                <span className="bg-white md:bg-slate-100 border md:border-0 border-slate-200 px-3 py-1 rounded font-black min-w-[60px] text-center shadow-sm md:shadow-none">
                   {jogo.resultadoCasa ?? '-'} x {jogo.resultadoFora ?? '-'}
                 </span>
               </div>
               <span className="font-bold">{jogo.timeFora.nome}</span>
               {jogo.mataMata && jogo.vencedorPenaltis && (
-                <span className="px-2 py-1 bg-purple-600 text-white rounded text-[10px] font-black uppercase shadow-sm">
-                  Pên: {jogo.vencedorPenaltis === 'CASA' ? jogo.timeCasa.nome : jogo.timeFora.nome}
+                <span className="px-2 py-1 bg-purple-600 text-white rounded text-[10px] font-black uppercase shadow-sm whitespace-nowrap">
+                  Pên: {jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-2 w-full md:w-auto">
+          <div className="grid grid-cols-2 gap-2 md:flex">
             <button
-              className="text-[11px] font-black uppercase tracking-wider bg-slate-900 text-white px-3 py-1.5 rounded-lg shadow-sm hover:scale-105 transition-transform"
+              className="text-[10px] md:text-[11px] font-black uppercase tracking-wider bg-slate-900 text-white px-3 py-2 md:py-1.5 rounded-lg shadow-sm hover:scale-105 transition-transform flex items-center justify-center"
               onClick={onEdit}
             >
-              Editar Jogo
+              Editar
             </button>
             <button
-              className="text-[11px] font-black uppercase tracking-wider bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
+              className="text-[10px] md:text-[11px] font-black uppercase tracking-wider bg-red-50 text-red-600 border border-red-100 px-3 py-2 md:py-1.5 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center"
               onClick={onDelete}
             >
               Excluir
             </button>
           </div>
           <button
-            className="w-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors text-center"
+            className="w-full text-[10px] md:text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100 px-3 py-2 md:py-1.5 rounded-lg hover:bg-blue-100 transition-colors text-center"
             onClick={() => {
               setShowPalpites(!showPalpites);
               if (!showPalpites) loadPalpites();
