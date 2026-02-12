@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   UseGuards,
+  Request,
 } from "@nestjs/common";
 import { JogosService } from "./jogos.service";
 import { CreateJogoDto } from "./dto/create-jogo.dto";
@@ -24,7 +25,7 @@ import { StatusJogo, TipoUsuario } from "@prisma/client";
 @Controller("jogos")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class JogosController {
-  constructor(private readonly jogosService: JogosService) {}
+  constructor(private readonly jogosService: JogosService) { }
 
   /**
    * Criar jogo vinculado a bolão e rodada (ADMIN)
@@ -64,6 +65,19 @@ export class JogosController {
   @Public()
   findOne(@Param("id") id: string) {
     return this.jogosService.findById(id);
+  }
+
+  /**
+   * Listar palpites de um jogo (Somente se FECHADO/ENCERRADO)
+   */
+  @Get(":id/palpites")
+  @Get(":id/palpites")
+  // Removido Public para garantir que recebemos o usuário logado
+  findPalpites(@Param("id") id: string, @Query("userId") userId?: string, @Body() body?: any, @Request() req?: any) {
+    // Em REST puro no NestJS com Guard, o user vem no request object
+    // Mas preciso injetar o REQUEST context... ou usar decorator @Req() ou @User()
+    // Vou usar o decorator @User() customizado ou @Request() req
+    return this.jogosService.listarPalpitesDoJogo(id, req?.user);
   }
 
   /**

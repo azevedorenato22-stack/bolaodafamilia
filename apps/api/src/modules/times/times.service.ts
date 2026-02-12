@@ -14,22 +14,55 @@ export class TimesService {
   constructor(private prisma: PrismaService) { }
 
   async create(createTimeDto: CreateTimeDto) {
-    // Verificar se já existe time com mesmo nome e categoria
-    const existingTime = await this.prisma.time.findFirst({
-      where: {
-        nome: createTimeDto.nome,
-        categoria: createTimeDto.categoria,
-      },
-    });
+    let rawCats: string[] = [];
 
-    if (existingTime) {
-      throw new ConflictException(
-        `Já existe um time com o nome "${createTimeDto.nome}" na categoria "${createTimeDto.categoria}"`,
-      );
+    if (createTimeDto.categorias && createTimeDto.categorias.length > 0) {
+      rawCats = createTimeDto.categorias;
+    } else if (createTimeDto.categoria) {
+      rawCats = [createTimeDto.categoria];
     }
 
+    // Split por vírgula e trim em cada item, removendo vazios e duplicados
+    const categoriasList = Array.from(new Set(
+      rawCats
+        .flatMap(c => c.split(','))
+        .map(c => c.trim())
+        .filter(c => !!c)
+    ));
+
+    // Garantir que categorias existem
+    if (categoriasList.length === 0) {
+      throw new BadRequestException("Categoria é obrigatória");
+    }
+
+    await Promise.all(
+      categoriasList.map(async (nomeCat) => {
+        const cat = await this.prisma.categoria.findUnique({ where: { nome: nomeCat } });
+        if (!cat) {
+          await this.prisma.categoria.create({ data: { nome: nomeCat } });
+        }
+      })
+    );
+
+    // Verificar duplicidade de nome (se for único globalmente) se necessário
+    // Aqui assumimos que o banco cuidará da constraint unique([nome]) se houver.
+
+    // Criar time
     const time = await this.prisma.time.create({
-      data: createTimeDto,
+      data: {
+        nome: createTimeDto.nome,
+        categoria: categoriasList[0], // Campo legado obrigatório
+        sigla: createTimeDto.sigla,
+        escudoUrl: createTimeDto.escudoUrl,
+        categorias: {
+          create: categoriasList.map(c => ({
+            categoria: { connect: { nome: c } }
+          }))
+        }
+      },
+      include: {
+        categorias: { include: { categoria: true } }
+      }
     });
 
     return time;
@@ -37,13 +70,22 @@ export class TimesService {
 
   async findAll(categoria?: string, ativo?: boolean) {
     const where: any = {};
-    if (categoria) where.categoria = categoria;
+    if (categoria) {
+      where.categorias = {
+        some: {
+          categoria: {
+            nome: categoria
+          }
+        }
+      };
+    }
     if (ativo !== undefined) where.ativo = ativo;
 
     const times = await this.prisma.time.findMany({
       where,
       orderBy: { nome: "asc" },
       include: {
+        categorias: { include: { categoria: true } },
         _count: {
           select: {
             boloes: true,
@@ -56,6 +98,7 @@ export class TimesService {
 
     return times.map((time) => ({
       ...time,
+      categoria: time.categorias.map(c => c.categoria.nome).join(', ') || time.categoria, // Exibição
       totalBoloes: time._count.boloes,
       totalJogos: time._count.jogosCasa + time._count.jogosFora,
     }));
@@ -65,6 +108,7 @@ export class TimesService {
     const time = await this.prisma.time.findUnique({
       where: { id },
       include: {
+        categorias: { include: { categoria: true } },
         _count: {
           select: {
             boloes: true,
@@ -81,6 +125,7 @@ export class TimesService {
 
     return {
       ...time,
+      categoriasNome: time.categorias.map(c => c.categoria.nome),
       totalBoloes: time._count.boloes,
       totalJogos: time._count.jogosCasa + time._count.jogosFora,
     };
@@ -88,73 +133,108 @@ export class TimesService {
 
   async findByCategorias() {
     const times = await this.prisma.time.findMany({
-      orderBy: [{ categoria: "asc" }, { nome: "asc" }],
+      orderBy: { nome: "asc" },
+      include: {
+        categorias: {
+          include: { categoria: true }
+        }
+      }
     });
 
-    // Agrupar times por categoria
-    const timesPorCategoria = times.reduce(
-      (acc, time) => {
-        if (!acc[time.categoria]) {
-          acc[time.categoria] = [];
-        }
-        acc[time.categoria].push(time);
-        return acc;
-      },
-      {} as Record<string, typeof times>,
-    );
+    // Agrupar times por categoria (um time pode estar em várias)
+    const timesPorCategoria: Record<string, any[]> = {};
 
-    return timesPorCategoria;
+    times.forEach(time => {
+      // Se não tiver categorias relacionadas, usa a legada
+      if (time.categorias.length === 0) {
+        if (!timesPorCategoria[time.categoria]) {
+          timesPorCategoria[time.categoria] = [];
+        }
+        timesPorCategoria[time.categoria].push(time);
+      } else {
+        // Adiciona nas listas de todas as categorias que participa
+        time.categorias.forEach(ct => {
+          const nomeCat = ct.categoria.nome;
+          if (!timesPorCategoria[nomeCat]) {
+            timesPorCategoria[nomeCat] = [];
+          }
+          timesPorCategoria[nomeCat].push(time);
+        });
+      }
+    });
+
+    // Ordenar chaves
+    const sortedKeys = Object.keys(timesPorCategoria).sort();
+    const sortedResult: Record<string, any[]> = {};
+    sortedKeys.forEach(k => {
+      sortedResult[k] = timesPorCategoria[k];
+    });
+
+    return sortedResult;
   }
 
   async getCategorias() {
-    const categorias = await this.prisma.time.findMany({
-      select: {
-        categoria: true,
-      },
-      distinct: ["categoria"],
-      orderBy: {
-        categoria: "asc",
-      },
+    const categorias = await this.prisma.categoria.findMany({
+      orderBy: { nome: 'asc' }
     });
-
-    return categorias.map((c) => c.categoria);
+    return categorias.map(c => c.nome);
   }
 
   async update(id: string, updateTimeDto: UpdateTimeDto) {
     const time = await this.prisma.time.findUnique({
       where: { id },
+      include: { categorias: { include: { categoria: true } } }
     });
 
     if (!time) {
       throw new NotFoundException("Time não encontrado");
     }
 
-    // Verificar duplicidade se nome ou categoria foram alterados
-    if (updateTimeDto.nome || updateTimeDto.categoria) {
-      const nome = updateTimeDto.nome || time.nome;
-      const categoria = updateTimeDto.categoria || time.categoria;
+    let rawCats: string[] | undefined = undefined;
+    if (updateTimeDto.categorias && updateTimeDto.categorias.length > 0) {
+      rawCats = updateTimeDto.categorias;
+    } else if (updateTimeDto.categoria) {
+      rawCats = [updateTimeDto.categoria];
+    }
 
-      // Se mudou nome ou categoria, verificar se não existe outro time com essa combinação
-      if (nome !== time.nome || categoria !== time.categoria) {
-        const existingTime = await this.prisma.time.findFirst({
-          where: {
-            nome,
-            categoria,
-            NOT: { id },
-          },
-        });
+    let categoriasList: string[] | undefined = undefined;
 
-        if (existingTime) {
-          throw new ConflictException(
-            `Já existe um time com o nome "${nome}" na categoria "${categoria}"`,
-          );
-        }
-      }
+    // Se houve atualização de categorias
+    if (rawCats) {
+      categoriasList = Array.from(new Set(
+        rawCats
+          .flatMap(c => c.split(','))
+          .map(c => c.trim())
+          .filter(c => !!c)
+      ));
+      // Garantir que categorias existem
+      await Promise.all(
+        categoriasList.map(async (nomeCat) => {
+          const cat = await this.prisma.categoria.findUnique({ where: { nome: nomeCat } });
+          if (!cat) {
+            await this.prisma.categoria.create({ data: { nome: nomeCat } });
+          }
+        })
+      );
     }
 
     const updatedTime = await this.prisma.time.update({
       where: { id },
-      data: updateTimeDto,
+      data: {
+        nome: updateTimeDto.nome,
+        sigla: updateTimeDto.sigla,
+        escudoUrl: updateTimeDto.escudoUrl,
+        // Atualiza campo legado se categorias mudar
+        categoria: categoriasList ? categoriasList[0] : undefined,
+        // Atualiza relações
+        categorias: categoriasList ? {
+          deleteMany: {}, // Remove todas atuais
+          create: categoriasList.map(c => ({
+            categoria: { connect: { nome: c } }
+          }))
+        } : undefined
+      },
+      include: { categorias: { include: { categoria: true } } }
     });
 
     return updatedTime;
@@ -222,5 +302,28 @@ export class TimesService {
     });
 
     return times;
+  }
+
+  async removeCategoria(nome: string) {
+    const cat = await this.prisma.categoria.findUnique({
+      where: { nome },
+      include: { _count: { select: { times: true } } }
+    });
+
+    if (!cat) {
+      throw new NotFoundException("Categoria não encontrada");
+    }
+
+    if (cat._count.times > 0) {
+      throw new BadRequestException(
+        `Não é possível excluir a categoria "${nome}" pois ela possui ${cat._count.times} time(s) vinculado(s)`
+      );
+    }
+
+    await this.prisma.categoria.delete({
+      where: { nome },
+    });
+
+    return { message: `Categoria "${nome}" removida com sucesso` };
   }
 }

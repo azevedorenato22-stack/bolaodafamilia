@@ -4,6 +4,7 @@ import {
   IsOptional,
   MaxLength,
   IsUrl,
+  IsArray,
 } from "class-validator";
 import { Transform } from "class-transformer";
 
@@ -13,10 +14,15 @@ export class CreateTimeDto {
   @MaxLength(255, { message: "Nome deve ter no máximo 255 caracteres" })
   nome: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: "Categoria é obrigatória" })
   @MaxLength(100, { message: "Categoria deve ter no máximo 100 caracteres" })
-  categoria: string;
+  categoria?: string;
+
+  @IsOptional()
+  @IsArray({ message: "Categorias deve ser uma lista" })
+  @IsString({ each: true, message: "Cada categoria deve ser uma string" })
+  categorias?: string[];
 
   @IsOptional()
   @IsString()

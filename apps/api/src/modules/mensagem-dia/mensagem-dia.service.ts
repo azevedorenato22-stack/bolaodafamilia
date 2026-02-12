@@ -26,12 +26,13 @@ export class MensagemDiaService {
       throw new BadRequestException("dataFim deve ser posterior a dataInicio");
     }
 
+    // Normalizar tipo para maiúsculo
+    const tipo = dto.tipo?.toUpperCase() || "GERAL";
+
     // Se for do tipo PATO, LIDER ou DESTAQUE, talvez queiramos desativar anteriores do mesmo tipo?
-    // Por enquanto, vamos permitir múltiplas e o frontend decide ou o admin gerencia.
-    // Mas para simplificar a vida do admin, se criar um novo "PATO", desativa o anterior.
-    if (dto.tipo && ["PATO", "LIDER", "DESTAQUE"].includes(dto.tipo)) {
+    if (["PATO", "LIDER", "DESTAQUE"].includes(tipo)) {
       await this.prisma.mensagemDia.updateMany({
-        where: { tipo: dto.tipo, ativo: true },
+        where: { tipo, ativo: true },
         data: { ativo: false },
       });
     }
@@ -40,7 +41,7 @@ export class MensagemDiaService {
       data: {
         titulo: dto.titulo ?? null,
         conteudo: dto.conteudo,
-        tipo: dto.tipo ?? "HOME",
+        tipo,
         dataInicio: dataInicio ?? null,
         dataFim: dataFim ?? null,
         ativo: dto.ativo ?? true,
@@ -61,11 +62,11 @@ export class MensagemDiaService {
   }
 
   /**
-   * Busca a mensagem ativa mais recente para exibição pública
+   * Busca todas as mensagens ativas para exibição pública (Pato, Líder, Destaque, Geral)
    */
-  async findActive() {
+  async findAllActive() {
     const now = new Date();
-    return this.prisma.mensagemDia.findFirst({
+    return this.prisma.mensagemDia.findMany({
       where: {
         ativo: true,
         AND: [

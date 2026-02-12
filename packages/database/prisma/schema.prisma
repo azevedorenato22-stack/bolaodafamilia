@@ -31,7 +31,7 @@ enum TipoUsuario {
 /// Status do jogo no ciclo de vida
 enum StatusJogo {
   PALPITES      // Aberto para palpites (antes do jogo)
-  EM_ANDAMENTO  // Em andamento (palpites bloqueados)
+  FECHADO       // Fechado para palpites (15min antes ou durante)
   ENCERRADO     // Finalizado (resultado cadastrado, pontos calculados)
 }
 
@@ -84,7 +84,7 @@ model Bolao {
   id                 String   @id @default(uuid()) @db.Uuid
   nome               String   @unique @db.VarChar(255)
   descricao          String?  @db.Text
-  dataFinal          DateTime @map("data_final") @db.Timestamptz(3)
+  dataFinal          DateTime? @map("data_final") @db.Timestamptz(3)
   ativo              Boolean  @default(true)
   
   // Parâmetros de pontuação configuráveis por bolão
@@ -320,6 +320,8 @@ model Palpite {
   golsFora         Int               @map("gols_fora") @db.SmallInt
   vencedorPenaltis VencedorPenaltis? @map("vencedor_penaltis")
   pontuacao        Int               @default(0) @db.SmallInt
+  pontosJogo       Int               @default(0) @map("pontos_jogo") @db.SmallInt // Pontos da fase regular
+  pontosPenaltis   Int               @default(0) @map("pontos_penaltis") @db.SmallInt // Pontos extras de pênaltis
   
   // Metadados de cálculo
   calculadoEm      DateTime?         @map("calculado_em") @db.Timestamptz(3)

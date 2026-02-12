@@ -1,7 +1,10 @@
 import api from '../lib/api';
 
-export async function listarRodadas(ativo?: boolean) {
-  const params = ativo !== undefined ? { ativo } : {};
+export async function listarRodadas(ativo?: boolean, bolaoId?: string) {
+  const params: any = {};
+  if (ativo !== undefined) params.ativo = ativo;
+  if (bolaoId) params.bolaoId = bolaoId;
+
   const { data } = await api.get('/api/rodadas', { params });
   return data;
 }

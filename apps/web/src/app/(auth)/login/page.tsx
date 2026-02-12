@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useAuth } from '../../providers';
 import { login as loginApi } from '../../../services/auth.service';
-import { mensagemAtual } from '../../../services/mensagem.service';
+import { mensagensAtivas } from '../../../services/mensagem.service';
 
 function LoginForm() {
   const { login, closeMensagemPopup, user, token } = useAuth();
@@ -21,7 +22,12 @@ function LoginForm() {
 
   useEffect(() => {
     closeMensagemPopup();
-    mensagemAtual().then(setMensagem).catch(() => setMensagem(null));
+    mensagensAtivas()
+      .then(msgs => {
+        const msg = msgs.find((m: any) => !['pato', 'lider', 'destaque'].includes(m.tipo)) || msgs[0] || null;
+        setMensagem(msg);
+      })
+      .catch(() => setMensagem(null));
   }, [closeMensagemPopup]);
 
   const resolveRedirect = (fromParam: string | null, tipo: 'ADMIN' | 'USUARIO') => {
@@ -79,64 +85,74 @@ function LoginForm() {
   };
 
   return (
-    <>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="space-y-2 text-center flex flex-col items-center">
-          <Image
-            src="/assets/icon-chuveiro.png"
-            width={80}
-            height={80}
-            alt="Bolão Amigos"
-            className="mb-2"
-          />
-          <p className="text-lg font-semibold text-primary-900">Bolão do Chuveiro Ligado</p>
-          <p className="text-sm text-gray-600">Acesse para fazer palpites e acompanhar o ranking.</p>
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Seu Nome</label>
+    <div className="space-y-6">
+      {/* Cabeçalho removido para evitar duplicação com layout externo */}
+
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter ml-1">Seu Nome</label>
           <input
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full rounded-2xl border border-slate-200 bg-white/50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500/20 focus:border-gray-500 transition-all placeholder:text-slate-400"
             value={nome}
             onChange={e => setNome(e.target.value)}
             required
-            placeholder="Digite seu nome"
+            placeholder="Ex: João Silva"
           />
         </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Senha</label>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter ml-1">Senha</label>
           <input
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full rounded-2xl border border-slate-200 bg-white/50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500/20 focus:border-gray-500 transition-all"
             type="password"
             value={senha}
             onChange={e => setSenha(e.target.value)}
             required
+            placeholder="••••••••"
           />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {success && <p className="text-sm text-green-700">{success}</p>}
+
+        {error && (
+          <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-xs font-medium text-red-600 animate-fade-in-up">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 rounded-xl bg-green-50 border border-green-100 text-xs font-medium text-green-700 animate-fade-in-up">
+            ✅ {success}
+          </div>
+        )}
+
         <button
           type="submit"
-          className="w-full bg-primary-600 text-white rounded-lg py-2 font-semibold hover:bg-primary-700 transition-colors disabled:opacity-60"
+          className="group relative w-full bg-gradient-to-r from-gray-800 to-black text-white rounded-2xl py-3.5 font-bold shadow-lg shadow-gray-500/20 hover:shadow-gray-600/30 hover:-translate-y-0.5 transition-all disabled:opacity-60 overflow-hidden"
           disabled={loading}
         >
-          {loading ? 'Entrando...' : 'Entrar'}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+          {loading ? 'Validando...' : 'Entrar no Bolão'}
         </button>
-        <p className="text-center text-sm text-gray-600">
-          Não tem conta?{' '}
-          <a className="text-primary-700 font-semibold" href="/register">
-            Cadastre-se com seu Nome
-          </a>
-        </p>
-      </form>
-      {mensagem && (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <p className="font-semibold text-amber-800">
-            {mensagem.titulo || 'Mensagem do administrador'}
+
+        <div className="text-center pt-2">
+          <p className="text-sm text-slate-500">
+            Ainda não tem conta?{' '}
+            <Link className="text-gray-900 font-bold hover:underline" href="/register">
+              Cadastre-se Agora
+            </Link>
           </p>
-          <p>{mensagem.conteudo}</p>
+        </div>
+      </form>
+
+      {mensagem && (
+        <div className="mt-8 pt-6 border-t border-slate-100">
+          <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200/50">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">{mensagem.conteudo}</p>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

@@ -30,7 +30,7 @@ import { TipoUsuario } from "@prisma/client";
 @Controller("rodadas")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RodadasController {
-  constructor(private readonly rodadasService: RodadasService) {}
+  constructor(private readonly rodadasService: RodadasService) { }
 
   /**
    * Criar nova rodada (ADMIN apenas)
@@ -50,9 +50,13 @@ export class RodadasController {
    */
   @Get()
   @Public()
-  findAll(@Query("ativo") ativo?: string) {
+
+  findAll(
+    @Query("ativo") ativo?: string,
+    @Query("bolaoId") bolaoId?: string,
+  ) {
     const ativoBool = ativo === undefined ? undefined : ativo === "true";
-    return this.rodadasService.findAll(ativoBool);
+    return this.rodadasService.findAll(ativoBool, bolaoId);
   }
 
   /**

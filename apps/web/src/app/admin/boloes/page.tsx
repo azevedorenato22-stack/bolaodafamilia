@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useProtectedPage } from '@/app/providers';
 import { criarBolao, excluirBolao, listarBoloesAdmin, atualizarBolao, toggleBolaoAtivo } from '@/services/boloes.service';
-import { listarTimes } from '@/services/times.service';
+import { listarTimes, listarCategorias } from '@/services/times.service';
 import { listarRodadas } from '@/services/rodadas.service';
 import { ConfirmModal } from '@/components/confirm-modal';
 import { listarUsuarios } from '@/services/usuarios.service';
@@ -12,6 +12,7 @@ export default function AdminBoloesPage() {
   useProtectedPage({ roles: ['ADMIN'] });
   const [boloes, setBoloes] = useState<any[]>([]);
   const [times, setTimes] = useState<any[]>([]);
+  const [categorias, setCategorias] = useState<string[]>([]);
   const [rodadas, setRodadas] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export default function AdminBoloesPage() {
   const emptyForm = () => ({
     nome: '',
     descricao: '',
-    dataFim: '',
+    dataFim: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10),
     ativo: true,
     pts_resultado_exato: 25,
     pts_vencedor_gols: 18,
@@ -33,7 +34,6 @@ export default function AdminBoloesPage() {
     pts_empate: 15,
     pts_placar_perdedor: 12,
     pts_vencedor: 10,
-    pts_campeao: 20,
     pts_penaltis: 5,
     timeIds: [] as string[],
     rodadaIds: [] as string[],
@@ -49,16 +49,18 @@ export default function AdminBoloesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bData, tData, rData, uData] = await Promise.all([
+      const [bData, tData, rData, uData, cData] = await Promise.all([
         listarBoloesAdmin(),
         listarTimes(),
         listarRodadas(),
         listarUsuarios(),
+        listarCategorias(),
       ]);
       setBoloes(sortBoloes(bData));
       setTimes(tData);
       setRodadas(rData);
       setUsuarios(uData.filter((u: any) => u.tipo === 'USUARIO'));
+      setCategorias(cData);
     } catch {
       setError('Erro ao carregar dados.');
     } finally {
@@ -116,12 +118,30 @@ export default function AdminBoloesPage() {
       pts_empate: b.ptsEmpate ?? 15,
       pts_placar_perdedor: b.ptsPlacarPerdedor ?? 12,
       pts_vencedor: b.ptsVencedor ?? 10,
-      pts_campeao: b.ptsCampeao ?? 20,
       pts_penaltis: b.ptsPenaltis ?? 5,
       timeIds: b.times?.map((t: any) => t.id) ?? [],
       rodadaIds: b.rodadas?.map((r: any) => r.id) ?? [],
       usuarioIds: b.participantes?.map((u: any) => u.id) ?? [],
     });
+  };
+
+  const handleAutoSelectByCategoria = (catNome: string) => {
+    // Pegar times que pertencem a essa categoria
+    const timesDaCat = times.filter((t: any) =>
+      t.categorias?.some((c: any) => c.categoria.nome === catNome) || t.categoria === catNome
+    );
+    const idsDaCat = timesDaCat.map(t => t.id);
+
+    // Se TODOS da categoria já estão selecionados, desseleciona eles
+    const todosSelecionados = idsDaCat.every(id => form.timeIds.includes(id));
+
+    if (todosSelecionados) {
+      setForm({ ...form, timeIds: form.timeIds.filter(id => !idsDaCat.includes(id)) });
+    } else {
+      // Se não, adiciona os que faltam
+      const novosIds = Array.from(new Set([...form.timeIds, ...idsDaCat]));
+      setForm({ ...form, timeIds: novosIds });
+    }
   };
 
   if (loading) return <div className="p-6">Carregando...</div>;
@@ -154,7 +174,7 @@ export default function AdminBoloesPage() {
         <div className="bg-white rounded-xl shadow p-6 space-y-4">
           <h2 className="text-lg font-semibold">{editingId ? 'Editar Bolão' : 'Novo Bolão'}</h2>
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-1 gap-4">
             <div>
               <label className="text-sm font-medium">Nome *</label>
               <input
@@ -163,25 +183,6 @@ export default function AdminBoloesPage() {
                 onChange={e => setForm({ ...form, nome: e.target.value })}
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Data Final *</label>
-              <input
-                type="date"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                value={form.dataFim}
-                onChange={e => setForm({ ...form, dataFim: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Descrição</label>
-            <textarea
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              rows={2}
-              value={form.descricao}
-              onChange={e => setForm({ ...form, descricao: e.target.value })}
-            />
           </div>
 
           <h3 className="text-md font-semibold pt-4">Pontuação</h3>
@@ -193,7 +194,6 @@ export default function AdminBoloesPage() {
               { key: 'pts_empate', label: 'Empate (EM)' },
               { key: 'pts_placar_perdedor', label: 'Placar Perdedor (PP)' },
               { key: 'pts_vencedor', label: 'Vencedor Simples (VS)' },
-              { key: 'pts_campeao', label: 'Campeão' },
               { key: 'pts_penaltis', label: 'Pênaltis' },
             ].map(({ key, label }) => (
               <div key={key}>
@@ -208,7 +208,26 @@ export default function AdminBoloesPage() {
             ))}
           </div>
 
-          <h3 className="text-md font-semibold pt-4">Times do Bolão</h3>
+          <div className="flex justify-between items-center pt-4">
+            <h3 className="text-md font-semibold">Times do Bolão</h3>
+            <div className="flex gap-2 items-center overflow-x-auto pb-1 max-w-md md:max-w-none">
+              <span className="text-xs text-gray-500 whitespace-nowrap">Marcar categoria:</span>
+              {categorias.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => handleAutoSelectByCategoria(cat)}
+                  className={`text-[10px] px-2 py-1 rounded-full border transition-colors whitespace-nowrap ${times.filter(t => (t.categorias?.some((c: any) => c.categoria.nome === cat) || t.categoria === cat))
+                    .every(t => form.timeIds.includes(t.id))
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                    }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
             {times.length === 0 ? (
               <p className="text-sm text-gray-500">Nenhum time cadastrado.</p>
@@ -264,6 +283,35 @@ export default function AdminBoloesPage() {
           </div>
           <p className="text-xs text-gray-500">
             {form.rodadaIds.length} rodada(s) selecionada(s)
+          </p>
+
+          <h3 className="text-md font-semibold pt-4">Participantes (Usuários)</h3>
+          <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
+            {usuarios.length === 0 ? (
+              <p className="text-sm text-gray-500">Nenhum usuário disponível.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {usuarios.map((u: any) => (
+                  <label key={u.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={form.usuarioIds.includes(u.id)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setForm({ ...form, usuarioIds: [...form.usuarioIds, u.id] });
+                        } else {
+                          setForm({ ...form, usuarioIds: form.usuarioIds.filter(id => id !== u.id) });
+                        }
+                      }}
+                    />
+                    <span className="truncate">{u.nome || u.usuario}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-500">
+            {form.usuarioIds.length} participante(s) selecionado(s)
           </p>
 
           <div className="flex items-center gap-2 pt-2">

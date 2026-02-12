@@ -27,7 +27,11 @@ export async function rankingFiltrado(bolaoId: string, filters: RankingFilters =
   return data;
 }
 
-export async function extratoUsuario(bolaoId: string, usuarioId: string) {
-  const { data } = await api.get(`/api/ranking/bolao/${bolaoId}/usuario/${usuarioId}`);
+export async function extratoUsuario(bolaoId: string, usuarioId: string, filters: RankingFilters = {}) {
+  const params: any = {};
+  if (filters.rodadaId) params.rodadaId = filters.rodadaId;
+  if (filters.status) params.status = filters.status;
+  if (filters.data) params.data = filters.data;
+  const { data } = await api.get(`/api/ranking/bolao/${bolaoId}/usuario/${usuarioId}`, { params });
   return data;
 }

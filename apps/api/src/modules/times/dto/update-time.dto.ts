@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MaxLength, IsUrl } from "class-validator";
+import { IsString, IsOptional, MaxLength, IsUrl, IsArray } from "class-validator";
 import { Transform } from "class-transformer";
 
 export class UpdateTimeDto {
@@ -11,6 +11,11 @@ export class UpdateTimeDto {
   @IsString()
   @MaxLength(100, { message: "Categoria deve ter no máximo 100 caracteres" })
   categoria?: string;
+
+  @IsOptional()
+  @IsArray({ message: "Categorias deve ser uma lista" })
+  @IsString({ each: true, message: "Cada categoria deve ser uma string" })
+  categorias?: string[];
 
   @IsOptional()
   @IsString()

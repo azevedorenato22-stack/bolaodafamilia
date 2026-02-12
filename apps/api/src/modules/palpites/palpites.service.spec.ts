@@ -25,12 +25,18 @@ function createMockPrisma(overrides: any = {}) {
   } as any;
 }
 
+function createMockJogosService() {
+  return {
+    recalcularPontuacao: jest.fn().mockResolvedValue(undefined),
+  } as any;
+}
+
 describe("PalpitesService - bloqueio de horário e permissões", () => {
   it("bloqueia palpite de usuário comum dentro da janela de 15 minutos", async () => {
     const prisma = createMockPrisma({
       jogo: { dataHora: new Date(Date.now() + 5 * 60 * 1000) }, // 5 minutos
     });
-    const service = new PalpitesService(prisma);
+    const service = new PalpitesService(prisma, createMockJogosService());
 
     await expect(
       service.create(
@@ -44,7 +50,7 @@ describe("PalpitesService - bloqueio de horário e permissões", () => {
     const prisma = createMockPrisma({
       jogo: { dataHora: past, status: StatusJogo.PALPITES },
     });
-    const service = new PalpitesService(prisma);
+    const service = new PalpitesService(prisma, createMockJogosService());
 
     await expect(
       service.create(
@@ -58,7 +64,7 @@ describe("PalpitesService - bloqueio de horário e permissões", () => {
     const prisma = createMockPrisma({
       jogo: { mataMata: true },
     });
-    const service = new PalpitesService(prisma);
+    const service = new PalpitesService(prisma, createMockJogosService());
 
     await expect(
       service.create(
@@ -72,7 +78,7 @@ describe("PalpitesService - bloqueio de horário e permissões", () => {
     const prisma = createMockPrisma({
       jogo: { mataMata: false },
     });
-    const service = new PalpitesService(prisma);
+    const service = new PalpitesService(prisma, createMockJogosService());
 
     await expect(
       service.create(

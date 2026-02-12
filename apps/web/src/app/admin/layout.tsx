@@ -2,19 +2,30 @@
 
 import { useAuth, useProtectedPage } from '../providers';
 import ResponsiveNav from '../../components/responsive-nav';
+import {
+  MessageSquare,
+  Trophy,
+  Shield,
+  Gamepad2,
+  List,
+  Crown,
+  Users,
+  BarChart3,
+} from 'lucide-react';
+
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = useProtectedPage({ roles: ['ADMIN'] });
   const { logout } = useAuth();
   const navItems = [
-    { href: '/admin', label: 'Mensagem do dia' },
-    { href: '/admin/boloes', label: 'Bolões' },
-    { href: '/admin/times', label: 'Times' },
-    { href: '/admin/jogos', label: 'Jogos' },
-    { href: '/admin/rodadas', label: 'Rodadas' },
-    { href: '/admin/campeoes', label: 'Campeões' },
-    { href: '/admin/usuarios', label: 'Usuários' },
-    { href: '/admin/ranking', label: 'Ver ranking' },
+    { href: '/admin/mensagens', label: 'Mensagem', icon: <MessageSquare size={18} /> },
+    { href: '/admin/boloes', label: 'Bolões', icon: <Trophy size={18} /> },
+    { href: '/admin/times', label: 'Times', icon: <Shield size={18} /> },
+    { href: '/admin/jogos', label: 'Jogos', icon: <Gamepad2 size={18} /> },
+    { href: '/admin/rodadas', label: 'Rodadas', icon: <List size={18} /> },
+    { href: '/admin/campeoes', label: 'Campeões', icon: <Crown size={18} /> },
+    { href: '/admin/usuarios', label: 'Usuários', icon: <Users size={18} /> },
+    { href: '/admin/ranking', label: 'Ranking', icon: <BarChart3 size={18} /> },
   ];
 
   return (

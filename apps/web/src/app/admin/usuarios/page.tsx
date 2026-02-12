@@ -55,11 +55,22 @@ export default function AdminUsuariosPage() {
     setSucesso(null);
     setIsSaving(true);
     const isEditing = Boolean(editingId);
+
+    // Gerar usuario/email automáticos se não informados (campos removidos da tela)
+    const usuarioBase = form.nome ? form.nome.toLowerCase().trim().replace(/\s+/g, '') : 'user';
+    const timestamp = new Date().getTime().toString().slice(-4);
+
+    const finalForm = {
+      ...form,
+      usuario: form.usuario || `${usuarioBase}${timestamp}`,
+      email: form.email || `${usuarioBase}${timestamp}@bolao.local`
+    };
+
     try {
       if (editingId) {
-        await atualizarUsuario(editingId, form);
+        await atualizarUsuario(editingId, finalForm);
       } else {
-        await criarUsuario(form);
+        await criarUsuario(finalForm);
       }
       await load();
       setEditingId(null);
@@ -82,32 +93,13 @@ export default function AdminUsuariosPage() {
       {erro && <p className="text-sm text-red-600">{erro}</p>}
 
       <form onSubmit={submit} className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white">
-        <div className="grid md:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-1 gap-3">
           <div>
             <label className="text-sm font-medium">Nome</label>
             <input
               className="w-full border rounded-lg px-3 py-2 text-sm"
               value={form.nome}
               onChange={e => setForm({ ...form, nome: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Usuário</label>
-            <input
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              value={form.usuario}
-              onChange={e => setForm({ ...form, usuario: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Email</label>
-            <input
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              type="email"
-              value={form.email}
-              onChange={e => setForm({ ...form, email: e.target.value })}
               required
             />
           </div>

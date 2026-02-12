@@ -13,11 +13,14 @@ export default function AdminMensagensPage() {
     const [mensagens, setMensagens] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [filtroTipo, setFiltroTipo] = useState('todos');
     const [form, setForm] = useState({
         titulo: '',
         conteudo: '',
-        tipo: 'INFO',
+        tipo: 'geral',
         ativo: true,
+        dataInicio: '',
+        dataFim: '',
     });
 
     const carregar = async () => {
@@ -42,7 +45,7 @@ export default function AdminMensagensPage() {
         setError(null);
         try {
             await salvarMensagem(form);
-            setForm({ titulo: '', conteudo: '', tipo: 'INFO', ativo: true });
+            setForm({ titulo: '', conteudo: '', tipo: 'geral', ativo: true, dataInicio: '', dataFim: '' });
             await carregar();
         } catch (err) {
             setError('Falha ao salvar mensagem.');
@@ -90,17 +93,20 @@ export default function AdminMensagensPage() {
                                 rows={3}
                             />
                         </div>
-                        <div className="flex gap-4">
-                            <div className="flex-1">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700">Tipo</label>
                                 <select
                                     className="w-full rounded-md border p-2"
                                     value={form.tipo}
                                     onChange={e => setForm({ ...form, tipo: e.target.value })}
                                 >
-                                    <option value="INFO">Info</option>
-                                    <option value="ALERTA">Alerta</option>
-                                    <option value="SUCESSO">Sucesso</option>
+                                    <option value="geral">Geral (Info)</option>
+                                    <option value="pato">Pato</option>
+                                    <option value="lider">Líder</option>
+                                    <option value="destaque">Destaque</option>
+                                    <option value="alerta">Alerta</option>
+                                    <option value="urgente">Urgente</option>
                                 </select>
                             </div>
                             <div className="flex items-center pt-6">
@@ -115,6 +121,27 @@ export default function AdminMensagensPage() {
                                 </label>
                             </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Início (Opcional)</label>
+                                <input
+                                    type="datetime-local"
+                                    className="w-full rounded-md border p-2"
+                                    value={form.dataInicio}
+                                    onChange={e => setForm({ ...form, dataInicio: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Fim (Opcional)</label>
+                                <input
+                                    type="datetime-local"
+                                    className="w-full rounded-md border p-2"
+                                    value={form.dataFim}
+                                    onChange={e => setForm({ ...form, dataFim: e.target.value })}
+                                />
+                            </div>
+                        </div>
                         <button
                             type="submit"
                             disabled={loading}
@@ -127,28 +154,48 @@ export default function AdminMensagensPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <h2 className="text-lg font-semibold">Histórico de Mensagens</h2>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold">Histórico de Mensagens</h2>
+                        <select
+                            className="rounded-md border p-2 text-sm"
+                            value={filtroTipo}
+                            onChange={(e) => setFiltroTipo(e.target.value)}
+                        >
+                            <option value="todos">Todos os tipos</option>
+                            <option value="geral">Geral</option>
+                            <option value="pato">Pato</option>
+                            <option value="lider">Líder</option>
+                            <option value="destaque">Destaque</option>
+                            <option value="alerta">Alerta</option>
+                            <option value="urgente">Urgente</option>
+                        </select>
+                    </div>
                     {mensagens.length === 0 && <p className="text-gray-500">Nenhuma mensagem cadastrada.</p>}
-                    {mensagens.map(msg => (
-                        <div key={msg.id} className="rounded-lg border bg-white p-4 shadow-sm relative">
-                            <div className="flex justify-between">
-                                <h3 className="font-semibold text-gray-900">{msg.titulo || 'Sem título'}</h3>
-                                <span className={`text-xs px-2 py-1 rounded-full ${msg.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                                    {msg.ativo ? 'Ativo' : 'Inativo'}
-                                </span>
+                    {mensagens
+                        .filter(msg => filtroTipo === 'todos' || msg.tipo?.toLowerCase() === filtroTipo.toLowerCase())
+                        .map(msg => (
+                            <div key={msg.id} className="rounded-lg border bg-white p-4 shadow-sm relative">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900">{msg.titulo || 'Sem título'}</h3>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tipo: {msg.tipo}</span>
+                                    </div>
+                                    <span className={`text-xs px-2 py-1 rounded-full ${msg.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                                        {msg.ativo ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                </div>
+                                <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{msg.conteudo}</p>
+                                <div className="mt-3 flex justify-between items-center text-xs text-gray-500">
+                                    <span>{new Date(msg.createdAt).toLocaleString('pt-BR')}</span>
+                                    <button
+                                        onClick={() => handleExcluir(msg.id)}
+                                        className="text-red-600 hover:text-red-800"
+                                    >
+                                        Excluir
+                                    </button>
+                                </div>
                             </div>
-                            <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{msg.conteudo}</p>
-                            <div className="mt-3 flex justify-between items-center text-xs text-gray-500">
-                                <span>{new Date(msg.createdAt).toLocaleString('pt-BR')}</span>
-                                <button
-                                    onClick={() => handleExcluir(msg.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                >
-                                    Excluir
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             </div>
         </div>

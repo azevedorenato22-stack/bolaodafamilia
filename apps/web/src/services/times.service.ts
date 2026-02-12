@@ -19,3 +19,13 @@ export async function atualizarTime(id: string, payload: any) {
   const { data } = await api.patch(`/api/times/${id}`, payload);
   return data;
 }
+
+export async function listarCategorias() {
+  const { data } = await api.get('/api/times/categorias');
+  return data;
+}
+
+export async function excluirCategoria(nome: string) {
+  const { data } = await api.delete(`/api/times/categorias/${encodeURIComponent(nome)}`);
+  return data;
+}

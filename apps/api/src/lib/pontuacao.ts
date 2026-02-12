@@ -26,11 +26,15 @@ export type PontuacaoContext = {
 
 export type ResultadoPontuacao = {
   pontos: number;
+  pontosJogo: number;
+  pontosPenaltis: number;
   tipo: string;
   acertouVencedor: boolean;
   acertouPlacarExato: boolean;
   acertouPenaltis: boolean;
 };
+
+// ... (omitindo as linhas do meio inalteradas, se possível, mas o range é 27-114, vou reescrever o bloco)
 
 type ResultadoJogo = "CASA" | "FORA" | "EMPATE";
 
@@ -52,118 +56,106 @@ export function calcularPontuacaoPalpite({
   palpite,
 }: PontuacaoContext): ResultadoPontuacao {
   const cfg = {
-    ptsResultadoExato: Number(bolao.ptsResultadoExato),
-    ptsVencedorGols: Number(bolao.ptsVencedorGols),
-    ptsDifGols: Number(bolao.ptsDiferencaGols ?? bolao.ptsVencedor),
-    ptsPlacarPerdedor: Number(bolao.ptsPlacarPerdedor ?? 12),
-    ptsVencedorSimples: Number(bolao.ptsVencedor ?? 10),
-    ptsEmpate: Number(bolao.ptsEmpate ?? bolao.ptsVencedor),
-    ptsEmpateExato: Number(bolao.ptsEmpateExato ?? bolao.ptsResultadoExato),
+    ptsResultadoExato: Number(bolao.ptsResultadoExato ?? 25), // PE
+    ptsVencedorGols: Number(bolao.ptsVencedorGols ?? 18), // PV
+    ptsDifGols: Number(bolao.ptsDiferencaGols ?? 15), // DG
+    ptsPlacarPerdedor: Number(bolao.ptsPlacarPerdedor ?? 12), // PP
+    ptsVencedorSimples: Number(bolao.ptsVencedor ?? 10), // VS
+    ptsEmpate: Number(bolao.ptsEmpate ?? 15), // EM (Empate Não Exato)
+    ptsEmpateExato: Number(bolao.ptsEmpateExato ?? 25), // PE (Empate Exato = Placar Exato)
     ptsPenaltis: Number(bolao.ptsPenaltis ?? 0),
   };
 
-  // Garante que os inputs são números para evitar erros de comparação de strings
-  const jogoResultadoCasa = Number(jogo.resultadoCasa);
-  const jogoResultadoFora = Number(jogo.resultadoFora);
-  const palpiteGolsCasa = Number(palpite.golsCasa);
-  const palpiteGolsFora = Number(palpite.golsFora);
+  // Garante number
+  const jCasa = Number(jogo.resultadoCasa);
+  const jFora = Number(jogo.resultadoFora);
+  const pCasa = Number(palpite.golsCasa);
+  const pFora = Number(palpite.golsFora);
 
-  const resultadoReal = vencedor(
-    jogoResultadoCasa,
-    jogoResultadoFora,
-    jogo.mataMata,
-    jogo.vencedorPenaltis,
-  );
-  const resultadoPalpite = vencedor(
-    palpiteGolsCasa,
-    palpiteGolsFora,
-    jogo.mataMata,
-    palpite.vencedorPenaltis,
-  );
-
-  const acertouPenaltis =
-    jogo.mataMata &&
-    jogoResultadoCasa === jogoResultadoFora &&
-    !!jogo.vencedorPenaltis &&
-    palpite.vencedorPenaltis === jogo.vencedorPenaltis;
-
-  const acertouPlacarExato =
-    palpiteGolsCasa === jogoResultadoCasa &&
-    palpiteGolsFora === jogoResultadoFora &&
-    (!jogo.mataMata ||
-      jogoResultadoCasa !== jogoResultadoFora ||
-      acertouPenaltis);
-
-  // Pontuação de Pênaltis (Adicional)
-  const pontosPenaltis = acertouPenaltis ? cfg.ptsPenaltis : 0;
-
-  // Função auxiliar para retornar resultado somando pênaltis
-  const resultado = (
-    ptsBase: number,
-    tipoBase: string,
-    vencedor: boolean,
-    placarExato: boolean,
-  ): ResultadoPontuacao => {
-    return {
-      pontos: ptsBase + pontosPenaltis,
-      tipo: tipoBase, // O tipo de pontuação principal (ex: PLACAR_EXATO)
-      acertouVencedor: vencedor,
-      acertouPlacarExato: placarExato,
-      acertouPenaltis,
-    };
+  // Vencedores (Tempo Normal)
+  const getVencedor = (c: number, f: number) => {
+    if (c > f) return "CASA";
+    if (f > c) return "FORA";
+    return "EMPATE";
   };
 
-  // 1. Placar Exato (PE) - Inclui Empate Exato (25 pts)
-  if (acertouPlacarExato) {
-    const isEmpate = jogoResultadoCasa === jogoResultadoFora;
+  const resReal = getVencedor(jCasa, jFora);
+  const resPalpite = getVencedor(pCasa, pFora);
+
+  // Lógica Pênaltis
+  let acertouPenaltis = false;
+  if (jogo.mataMata && jogo.vencedorPenaltis && palpite.vencedorPenaltis) {
+    const palVenc = String(palpite.vencedorPenaltis).trim();
+    const jogVenc = String(jogo.vencedorPenaltis).trim();
+    if (palVenc === jogVenc) {
+      acertouPenaltis = true;
+    }
+  }
+
+  const pontosPenaltis = acertouPenaltis ? cfg.ptsPenaltis : 0;
+
+  // Função helper
+  const criarResultado = (pontosJogo: number, tipo: string, acertouVenc: boolean, exato: boolean): ResultadoPontuacao => ({
+    pontos: pontosJogo + pontosPenaltis,
+    pontosJogo,
+    pontosPenaltis,
+    tipo,
+    acertouVencedor: acertouVenc,
+    acertouPlacarExato: exato,
+    acertouPenaltis
+  });
+
+  // 1. Placar Exato (PE) - 25 pts
+  if (pCasa === jCasa && pFora === jFora) {
+    const isEmpate = jCasa === jFora;
+    // Empate Exato (25) ou Placar Exato (25)
+    // Se for Empate Exato, usa regra especifica se houver, senão PE
     const pontos = isEmpate ? cfg.ptsEmpateExato : cfg.ptsResultadoExato;
-    return resultado(pontos, "placar_exato", true, true);
+    return criarResultado(pontos, "placar_exato", true, true);
   }
 
-  const acertouVencedor =
-    resultadoPalpite === resultadoReal && resultadoReal !== "EMPATE";
+  // Se não foi exato, verificamos se acertou o vencedor/empate
+  if (resReal === resPalpite) {
+    // CENÁRIO EMPATE (EM) - 15 pts
+    if (resReal === "EMPATE") {
+      // Já sabemos que não é exato (caiu no if anterior), então é Empate Não Exato
+      return criarResultado(cfg.ptsEmpate, "empate", true, false);
+    }
 
-  const golsVencedorReal =
-    resultadoReal === "CASA" ? jogoResultadoCasa : jogoResultadoFora;
-  const golsVencedorPalpite =
-    resultadoPalpite === "CASA" ? palpiteGolsCasa : palpiteGolsFora;
+    // CENÁRIO VENCEDOR (CASA ou FORA)
+    const golsVencReal = resReal === "CASA" ? jCasa : jFora;
+    const golsVencPalpite = resReal === "CASA" ? pCasa : pFora;
 
-  const golsPerdedorReal =
-    resultadoReal === "CASA" ? jogoResultadoFora : jogoResultadoCasa;
-  const golsPerdedorPalpite =
-    resultadoPalpite === "CASA" ? palpiteGolsFora : palpiteGolsCasa;
+    const golsPerdReal = resReal === "CASA" ? jFora : jCasa;
+    const golsPerdPalpite = resReal === "CASA" ? pFora : pCasa;
 
-  const diffReal = jogoResultadoCasa - jogoResultadoFora;
-  const diffPalpite = palpiteGolsCasa - palpiteGolsFora;
+    const diffReal = jCasa - jFora;
+    const diffPalpite = pCasa - pFora;
 
-  // 2. Vencedor + Placar Vencedor (PV) - 18 pts
-  if (acertouVencedor && golsVencedorPalpite === golsVencedorReal) {
-    return resultado(cfg.ptsVencedorGols, "placar_vencedor", true, false);
+    // 2. Placar Vencedor (PV) - 18 pts
+    if (golsVencPalpite === golsVencReal) {
+      return criarResultado(cfg.ptsVencedorGols, "placar_vencedor", true, false);
+    }
+
+    // 3. Diferença de Gols (DG) - 15 pts
+    if (diffReal === diffPalpite) {
+      return criarResultado(cfg.ptsDifGols, "diferenca_gols", true, false);
+    }
+
+    // 4. Placar Perdedor (PP) - 12 pts
+    if (golsPerdPalpite === golsPerdReal) {
+      return criarResultado(cfg.ptsPlacarPerdedor, "placar_perdedor", true, false);
+    }
+
+    // 5. Vencedor Simples (VS) - 10 pts
+    return criarResultado(cfg.ptsVencedorSimples, "vencedor_simples", true, false);
   }
 
-  // 3. Vencedor + Diferença de Gols (DG) - 15 pts
-  if (acertouVencedor && diffReal === diffPalpite) {
-    return resultado(cfg.ptsDifGols, "diferenca_gols", true, false);
+  // Errou tudo (mas pode ter acertado pênaltis)
+  if (pontosPenaltis > 0) {
+    return criarResultado(0, "penaltis_apenas", false, false);
   }
-
-  // 4. Empate Não Exato (EM) - 15 pts
-  if (resultadoReal === "EMPATE" && resultadoPalpite === "EMPATE") {
-    // Se chegou aqui, não foi exato, então é empate não exato
-    return resultado(cfg.ptsEmpate, "empate", true, false);
-  }
-
-  // 5. Vencedor + Placar Perdedor (PP) - 12 pts
-  if (acertouVencedor && golsPerdedorPalpite === golsPerdedorReal) {
-    return resultado(cfg.ptsPlacarPerdedor, "placar_perdedor", true, false);
-  }
-
-  // 6. Vencedor Simples (VS) - 10 pts
-  if (acertouVencedor) {
-    return resultado(cfg.ptsVencedorSimples, "vencedor_simples", true, false);
-  }
-
-  // 7. Errou tudo, mas pode ter acertado pênaltis
-  return resultado(0, "errou", false, false);
+  return criarResultado(0, "errou", false, false);
 }
 
 export const EXEMPLOS_PONTUACAO = [

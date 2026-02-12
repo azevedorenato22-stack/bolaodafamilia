@@ -75,7 +75,7 @@ export default function RankingPage() {
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Ranking</h1>
         <p className="text-sm text-gray-600">
-          Critérios: Total (Jogos + Campeões) &gt; Jogos &gt; PC &gt; PV &gt; DG &gt; PP &gt; V
+          Critérios: Total (Jogos + Campeões) &gt; Jogos &gt; Campeão &gt; PC &gt; EM &gt; PV &gt; DG &gt; PP &gt; V
         </p>
         {boloesch.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
@@ -225,9 +225,11 @@ export default function RankingPage() {
                 <tr>
                   <th className="px-4 py-3">Pos</th>
                   <th className="px-4 py-3">Usuário</th>
-                  <th className="px-4 py-3">Pontos</th>
-                  <th className="px-4 py-3">Campeões</th>
+                  <th className="px-4 py-3">Total</th>
+                  <th className="px-4 py-3">Jogos</th>
+                  <th className="px-4 py-3">Camp</th>
                   <th className="px-4 py-3">PC</th>
+                  <th className="px-4 py-3">EM</th>
                   <th className="px-4 py-3">PV</th>
                   <th className="px-4 py-3">DG</th>
                   <th className="px-4 py-3">PP</th>
@@ -244,8 +246,10 @@ export default function RankingPage() {
                     <td className="px-4 py-3 font-semibold">{row.posicao}</td>
                     <td className="px-4 py-3">{row.nome}</td>
                     <td className="px-4 py-3 font-semibold text-primary-700">{row.pontosTotal}</td>
-                    <td className="px-4 py-3">{row.pontosCampeao}</td>
+                    <td className="px-4 py-3 text-gray-600">{row.pontosJogos}</td>
+                    <td className="px-4 py-3 text-gray-600">{row.pontosCampeao}</td>
                     <td className="px-4 py-3">{row.pc}</td>
+                    <td className="px-4 py-3">{row.em}</td>
                     <td className="px-4 py-3">{row.pv}</td>
                     <td className="px-4 py-3">{row.dg}</td>
                     <td className="px-4 py-3">{row.pp}</td>

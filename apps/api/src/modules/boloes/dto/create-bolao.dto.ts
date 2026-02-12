@@ -22,9 +22,9 @@ export class CreateBolaoDto {
   @MaxLength(500, { message: "Descrição deve ter no máximo 500 caracteres" })
   descricao?: string;
 
+  @IsOptional()
   @IsDateString({}, { message: "Data final inválida" })
-  @IsNotEmpty({ message: "Data final é obrigatória" })
-  dataFim: string;
+  dataFim?: string;
 
   @IsOptional()
   @IsBoolean()

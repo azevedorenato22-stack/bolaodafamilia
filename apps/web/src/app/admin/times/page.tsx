@@ -2,14 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useProtectedPage } from '../../providers';
-import { criarTime, excluirTime, listarTimes, atualizarTime } from '../../../services/times.service';
+import { criarTime, excluirTime, listarTimes, atualizarTime, listarCategorias, excluirCategoria } from '../../../services/times.service';
 import { ConfirmModal } from '../../../components/confirm-modal';
 
 export default function AdminTimesPage() {
   useProtectedPage({ roles: ['ADMIN'] });
   const [times, setTimes] = useState<any[]>([]);
-  const [form, setForm] = useState({ nome: '', categoria: '', sigla: '', escudoUrl: '' });
-  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>(''); // select value
+  const [todasCategorias, setTodasCategorias] = useState<string[]>([]);
+
+  const [form, setForm] = useState<{
+    nome: string;
+    categorias: string[];
+  }>({
+    nome: '',
+    categorias: [],
+  });
+
   const [novaCategoria, setNovaCategoria] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState<string>('Todas');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -19,9 +27,12 @@ export default function AdminTimesPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    listarTimes()
-      .then(setTimes)
-      .catch(() => setErro('Falha ao carregar times.'));
+    Promise.all([listarTimes(), listarCategorias()])
+      .then(([timesData, categoriasData]) => {
+        setTimes(timesData);
+        setTodasCategorias(categoriasData);
+      })
+      .catch(() => setErro('Falha ao carregar dados.'));
   }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -30,11 +41,19 @@ export default function AdminTimesPage() {
     setSucesso(null);
     setIsSaving(true);
     const isEditing = Boolean(editingId);
-    try {
-      const categoriaFinal =
-        categoriaSelecionada === '__nova__' ? novaCategoria.trim() : categoriaSelecionada || form.categoria;
 
-      const payload = { ...form, categoria: categoriaFinal };
+    // Validação básica
+    if (!form.categorias || form.categorias.length === 0) {
+      setErro('Selecione pelo menos uma categoria.');
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const payload = {
+        nome: form.nome,
+        categorias: form.categorias
+      };
 
       if (editingId) {
         await atualizarTime(editingId, payload);
@@ -43,10 +62,13 @@ export default function AdminTimesPage() {
       }
       setSucesso(isEditing ? 'Time atualizado com sucesso.' : 'Time criado com sucesso.');
       setEditingId(null);
-      setForm({ nome: '', categoria: '', sigla: '', escudoUrl: '' });
-      setCategoriaSelecionada('');
+      setForm({ nome: '', categorias: [] });
       setNovaCategoria('');
-      setTimes(await listarTimes());
+
+      // Recarregar dados
+      const [novosTimes, novasCategorias] = await Promise.all([listarTimes(), listarCategorias()]);
+      setTimes(novosTimes);
+      setTodasCategorias(novasCategorias);
       setFiltroCategoria('Todas');
     } catch {
       setErro(isEditing ? 'Erro ao atualizar time.' : 'Erro ao criar time.');
@@ -63,6 +85,28 @@ export default function AdminTimesPage() {
       setErro('Não foi possível excluir (provavelmente vinculado a jogos/bolões).');
     }
   };
+
+  const handleExcluirCategoria = async (cat: string) => {
+    if (!confirm(`Deseja excluir a categoria "${cat}"?`)) return;
+    try {
+      await excluirCategoria(cat);
+      setSucesso(`Categoria "${cat}" removida.`);
+      const cats = await listarCategorias();
+      setTodasCategorias(cats);
+    } catch (err: any) {
+      setErro(err.response?.data?.message || 'Erro ao excluir categoria. Verifique se há times vinculados.');
+    }
+  };
+
+  // Filtragem local
+  const timesFiltrados = times
+    .filter(t => filtroCategoria === 'Todas' || (t.categoria && t.categoria.includes(filtroCategoria))) // t.categoria é string "A, B"
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  // Extrair categorias para o filtro (pode usar todasCategorias ou extrair dos times)
+  const categoriasFiltro = Array.from(new Set(todasCategorias.concat(
+    times.flatMap(t => t.categoria ? t.categoria.split(',').map((s: string) => s.trim()) : [])
+  ))).sort();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
@@ -85,61 +129,68 @@ export default function AdminTimesPage() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Categoria</label>
-            <select
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              value={categoriaSelecionada || form.categoria}
-              onChange={e => {
-                const val = e.target.value;
-                setCategoriaSelecionada(val);
-                if (val !== '__nova__') {
-                  setForm({ ...form, categoria: val });
-                  setNovaCategoria('');
-                }
-              }}
-            >
-              <option value="">Selecione</option>
-              {Array.from(new Set(times.map(t => t.categoria)))
-                .sort((a, b) => a.localeCompare(b))
-                .map(cat => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              <option value="__nova__">+ Nova categoria...</option>
-            </select>
-            {categoriaSelecionada === '__nova__' && (
+            <label className="text-sm font-medium mb-1 block">Categorias</label>
+            <div className="border rounded-lg p-3 max-h-40 overflow-y-auto bg-slate-50 space-y-2">
+              {todasCategorias.map(cat => (
+                <div key={cat} className="group flex items-center justify-between gap-2 text-sm hover:bg-slate-100 p-1 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer flex-1">
+                    <input
+                      type="checkbox"
+                      checked={form.categorias?.includes(cat)}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setForm(prev => {
+                          const atuais = prev.categorias || [];
+                          if (checked) return { ...prev, categorias: [...atuais, cat] };
+                          return { ...prev, categorias: atuais.filter(c => c !== cat) };
+                        });
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{cat}</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleExcluirCategoria(cat)}
+                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 px-1"
+                    title="Excluir categoria"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 flex gap-2">
               <input
-                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm"
-                placeholder="Digite a nova categoria"
+                className="flex-1 border rounded-lg px-3 py-1.5 text-sm"
+                placeholder="Nova categoria..."
                 value={novaCategoria}
-                onChange={e => {
-                  setNovaCategoria(e.target.value);
-                  setForm({ ...form, categoria: e.target.value });
-                }}
-                required
+                onChange={e => setNovaCategoria(e.target.value)}
               />
-            )}
+              <button
+                type="button"
+                className="bg-slate-200 hover:bg-slate-300 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700"
+                onClick={() => {
+                  const val = novaCategoria.trim();
+                  if (val && !todasCategorias.includes(val)) {
+                    setTodasCategorias(prev => [...prev, val].sort());
+                    setForm(prev => ({ ...prev, categorias: [...(prev.categorias || []), val] }));
+                    setNovaCategoria('');
+                  } else if (val && !form.categorias?.includes(val)) {
+                    setForm(prev => ({ ...prev, categorias: [...(prev.categorias || []), val] }));
+                    setNovaCategoria('');
+                  }
+                }}
+                disabled={!novaCategoria.trim()}
+              >
+                Adicionar
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Selecione uma ou mais categorias.</p>
           </div>
         </div>
-        <div className="grid md:grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm font-medium">Sigla</label>
-            <input
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              value={form.sigla}
-              onChange={e => setForm({ ...form, sigla: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Escudo URL</label>
-            <input
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              value={form.escudoUrl}
-              onChange={e => setForm({ ...form, escudoUrl: e.target.value })}
-            />
-          </div>
-        </div>
+
         <button
           type="submit"
           className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -153,8 +204,7 @@ export default function AdminTimesPage() {
             className="text-sm text-gray-600 underline ml-2 disabled:opacity-50"
             onClick={() => {
               setEditingId(null);
-              setForm({ nome: '', categoria: '', sigla: '', escudoUrl: '' });
-              setCategoriaSelecionada('');
+              setForm({ nome: '', categorias: [] });
               setNovaCategoria('');
             }}
             disabled={isSaving}
@@ -175,8 +225,7 @@ export default function AdminTimesPage() {
               onChange={e => setFiltroCategoria(e.target.value)}
             >
               <option value="Todas">Todas</option>
-              {Array.from(new Set(times.map(t => t.categoria)))
-                .sort((a, b) => a.localeCompare(b))
+              {categoriasFiltro
                 .map(cat => (
                   <option key={cat} value={cat}>
                     {cat}
@@ -186,26 +235,22 @@ export default function AdminTimesPage() {
           </div>
         </div>
         <div className="divide-y divide-gray-100">
-          {times
-            .filter(t => filtroCategoria === 'Todas' || t.categoria === filtroCategoria)
-            .slice()
-            .sort((a, b) => a.nome.localeCompare(b.nome))
-            .map(t => (
-              <div key={t.id} className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold">{t.nome}</p>
-                  <p className="text-sm text-gray-600">{t.categoria}</p>
-                </div>
+          {timesFiltrados.map(t => (
+            <div key={t.id} className="p-4 flex items-center justify-between">
+              <div>
+                <p className="font-semibold">{t.nome}</p>
+                <p className="text-sm text-gray-600">{t.categoria}</p>
+              </div>
+              <div className="flex items-center">
                 <button
                   className="text-sm text-primary-700 hover:text-primary-800 mr-2"
                   onClick={() => {
                     setEditingId(t.id);
                     setForm({
                       nome: t.nome,
-                      categoria: t.categoria,
-                      sigla: t.sigla ?? '',
-                      escudoUrl: t.escudoUrl ?? '',
+                      categorias: t.categoria ? t.categoria.split(',').map((s: string) => s.trim()) : [],
                     });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                 >
                   Editar
@@ -217,8 +262,9 @@ export default function AdminTimesPage() {
                   Excluir
                 </button>
               </div>
-            ))}
-          {times.length === 0 && <p className="p-4 text-sm text-gray-600">Nenhum time.</p>}
+            </div>
+          ))}
+          {timesFiltrados.length === 0 && <p className="p-4 text-sm text-gray-600">Nenhum time.</p>}
         </div>
       </div>
       {confirmId && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useProtectedPage } from '../../providers';
 import { listarBoloesAdmin } from '../../../services/boloes.service';
 import { listarRodadas } from '../../../services/rodadas.service';
@@ -49,6 +49,7 @@ export default function AdminJogosPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filters, setFilters] = useState<FiltersState>(initialFilters);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const sortByName = (lista: any[]) =>
     [...lista].sort((a, b) => a.nome.localeCompare(b.nome));
@@ -121,7 +122,7 @@ export default function AdminJogosPage() {
           dataHora: new Date(form.dataHora).toISOString(),
           resultadoCasa: form.resultadoCasa === '' ? undefined : Number(form.resultadoCasa),
           resultadoFora: form.resultadoFora === '' ? undefined : Number(form.resultadoFora),
-          vencedorPenaltis: form.vencedorPenaltis || undefined,
+          vencedorPenaltis: form.vencedorPenaltis || null,
           status: form.status,
         });
       } else {
@@ -130,7 +131,7 @@ export default function AdminJogosPage() {
           dataHora: new Date(form.dataHora).toISOString(),
           resultadoCasa: form.resultadoCasa === '' ? undefined : Number(form.resultadoCasa),
           resultadoFora: form.resultadoFora === '' ? undefined : Number(form.resultadoFora),
-          vencedorPenaltis: form.vencedorPenaltis || undefined,
+          vencedorPenaltis: form.vencedorPenaltis || null,
           status: form.status,
         });
       }
@@ -178,15 +179,15 @@ export default function AdminJogosPage() {
       ? rodadasFiltro.concat(rodadas.filter((r: any) => r.id === filters.rodadaId))
       : rodadasFiltro;
 
-  useEffect(() => {
-    if (!form.bolaoId) return;
-    if (rodadasDisponiveisComAtual.length === 0) return;
+  // useEffect(() => {
+  //   if (!form.bolaoId) return;
+  //   if (rodadasDisponiveisComAtual.length === 0) return;
 
-    const hasCurrent = rodadasDisponiveisComAtual.some((r: any) => r.id === form.rodadaId);
-    if (!hasCurrent) {
-      setForm(prev => ({ ...prev, rodadaId: rodadasDisponiveisComAtual[0].id }));
-    }
-  }, [form.bolaoId, rodadasDisponiveisComAtual, form.rodadaId]);
+  //   const hasCurrent = rodadasDisponiveisComAtual.some((r: any) => r.id === form.rodadaId);
+  //   if (!hasCurrent) {
+  //     setForm(prev => ({ ...prev, rodadaId: rodadasDisponiveisComAtual[0].id }));
+  //   }
+  // }, [form.bolaoId, rodadasDisponiveisComAtual, form.rodadaId]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
@@ -213,7 +214,7 @@ export default function AdminJogosPage() {
                 }`}
               onClick={async () => {
                 const hoje = formatDateForInput(new Date());
-                const next: FiltersState = { ...filters, data: hoje, periodo: 'HOJE' };
+                const next: FiltersState = { ...filters, data: hoje, periodo: 'HOJE', status: '', rodadaId: '' };
                 setFilters(next);
                 await loadJogos(next);
               }}
@@ -227,7 +228,7 @@ export default function AdminJogosPage() {
                 : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
               onClick={async () => {
-                const next: FiltersState = { ...filters, data: '', periodo: 'FUTURO' };
+                const next: FiltersState = { ...filters, data: '', periodo: 'FUTURO', status: '', rodadaId: '' };
                 setFilters(next);
                 await loadJogos(next);
               }}
@@ -308,60 +309,38 @@ export default function AdminJogosPage() {
           </div>
           <div className="divide-y divide-gray-100">
             {jogos.map(j => (
-              <div key={j.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold">
-                    {j.timeCasa?.nome} x {j.timeFora?.nome}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {j.bolao?.nome} • {j.rodada?.nome} •{' '}
-                    {new Date(j.dataHora).toLocaleString('pt-BR')}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Status: {j.status} • Placar: {j.resultadoCasa ?? '-'} x {j.resultadoFora ?? '-'}
-                    {j.mataMata && j.status === 'ENCERRADO' && j.vencedorPenaltis
-                      ? ` • Pênaltis: ${j.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}`
-                      : ''}
-                  </p>
-                </div>
-                <div className="flex gap-3 text-sm">
-                  <button
-                    className="text-primary-700 hover:text-primary-800"
-                    onClick={() => {
-                      setErro(null);
-                      setSucesso(null);
-                      setEditingId(j.id);
-                      setForm({
-                        bolaoId: j.bolaoId,
-                        rodadaId: j.rodadaId,
-                        timeCasaId: j.timeCasaId,
-                        timeForaId: j.timeForaId,
-                        dataHora: formatDateTimeForInput(j.dataHora),
-                        mataMata: j.mataMata,
-                        status: j.status,
-                        resultadoCasa:
-                          j.resultadoCasa === null || j.resultadoCasa === undefined
-                            ? ''
-                            : String(j.resultadoCasa),
-                        resultadoFora:
-                          j.resultadoFora === null || j.resultadoFora === undefined
-                            ? ''
-                            : String(j.resultadoFora),
-                        vencedorPenaltis: j.vencedorPenaltis ?? '',
-                      });
-                      // Scroll to form if needed, or simple enough to just be there.
-                    }}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    className="text-sm text-red-600 hover:text-red-700"
-                    onClick={() => setConfirmId(j.id)}
-                  >
-                    Excluir
-                  </button>
-                </div>
-              </div>
+              <AdminJogoItem
+                key={j.id}
+                jogo={j}
+                onRefresh={() => loadJogos(filters)}
+                onEdit={() => {
+                  setErro(null);
+                  setSucesso(null);
+                  setEditingId(j.id);
+                  setForm({
+                    bolaoId: j.bolaoId,
+                    rodadaId: j.rodadaId,
+                    timeCasaId: j.timeCasaId,
+                    timeForaId: j.timeForaId,
+                    dataHora: formatDateTimeForInput(j.dataHora),
+                    mataMata: j.mataMata,
+                    status: j.status,
+                    resultadoCasa:
+                      j.resultadoCasa === null || j.resultadoCasa === undefined
+                        ? ''
+                        : String(j.resultadoCasa),
+                    resultadoFora:
+                      j.resultadoFora === null || j.resultadoFora === undefined
+                        ? ''
+                        : String(j.resultadoFora),
+                    vencedorPenaltis: j.vencedorPenaltis ?? '',
+                  });
+                  setTimeout(() => {
+                    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 100);
+                }}
+                onDelete={() => setConfirmId(j.id)}
+              />
             ))}
             {jogos.length === 0 && (
               <p className="p-4 text-sm text-gray-600">
@@ -378,7 +357,7 @@ export default function AdminJogosPage() {
       <h2 className="text-lg font-semibold text-gray-800 pt-4">
         {editingId ? 'Editar Jogo' : 'Cadastrar Jogo'}
       </h2>
-      <form onSubmit={submit} className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white">
+      <form ref={formRef} onSubmit={submit} className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white">
         <div className="grid md:grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium">Bolão</label>
@@ -395,7 +374,7 @@ export default function AdminJogosPage() {
                 })
               }
             >
-              <option value="">Escolher bolão</option>
+              <option value="">Escolha um bolão...</option>
               {boloes.map(b => (
                 <option key={b.id} value={b.id}>
                   {b.nome}
@@ -410,6 +389,7 @@ export default function AdminJogosPage() {
               value={form.rodadaId}
               onChange={e => setForm({ ...form, rodadaId: e.target.value })}
             >
+              <option value="">Escolha uma rodada...</option>
               {rodadasDisponiveisComAtual.map((r: any) => (
                 <option key={r.id} value={r.id}>
                   {r.nome}
@@ -491,7 +471,7 @@ export default function AdminJogosPage() {
               onChange={e => setForm({ ...form, status: e.target.value as StatusJogo })}
             >
               <option value="PALPITES">Aberto / Palpites</option>
-              <option value="EM_ANDAMENTO">Em andamento (Travado)</option>
+              <option value="FECHADO">Fechado (Aguardando jogo)</option>
               <option value="ENCERRADO">Encerrado</option>
             </select>
           </div>
@@ -502,7 +482,6 @@ export default function AdminJogosPage() {
               className="w-full border rounded-lg px-3 py-2 text-sm"
               value={form.resultadoCasa}
               onChange={e => setForm({ ...form, resultadoCasa: e.target.value })}
-              disabled={form.status !== 'ENCERRADO'}
               min={0}
             />
           </div>
@@ -513,7 +492,6 @@ export default function AdminJogosPage() {
               className="w-full border rounded-lg px-3 py-2 text-sm"
               value={form.resultadoFora}
               onChange={e => setForm({ ...form, resultadoFora: e.target.value })}
-              disabled={form.status !== 'ENCERRADO'}
               min={0}
             />
           </div>
@@ -526,11 +504,10 @@ export default function AdminJogosPage() {
                 className="w-full border rounded-lg px-3 py-2 text-sm"
                 value={form.vencedorPenaltis}
                 onChange={e => setForm({ ...form, vencedorPenaltis: e.target.value })}
-                disabled={form.status !== 'ENCERRADO'}
               >
                 <option value="">Selecione</option>
-                <option value="CASA">Casa</option>
-                <option value="FORA">Fora</option>
+                <option value="CASA">Casa ({times.find(t => t.id === form.timeCasaId)?.nome || 'Mandante'})</option>
+                <option value="FORA">Fora ({times.find(t => t.id === form.timeForaId)?.nome || 'Visitante'})</option>
               </select>
             </div>
             <div className="md:col-span-2 text-xs text-gray-600">
@@ -567,6 +544,210 @@ export default function AdminJogosPage() {
             handleDelete(confirmId, senha);
           }}
         />
+      )}
+    </div>
+  );
+}
+
+function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRefresh: () => void; onEdit: () => void; onDelete: () => void }) {
+  const [showPalpites, setShowPalpites] = useState(false);
+  const [palpites, setPalpites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingPalpiteId, setEditingPalpiteId] = useState<string | null>(null);
+  const [palpiteForm, setPalpiteForm] = useState({ golsCasa: '', golsFora: '', vencedorPenaltis: '' });
+
+  const loadPalpites = async () => {
+    setLoading(true);
+    try {
+      const { listarPalpitesDoJogo } = await import('../../../services/jogos.service');
+      const data = await listarPalpitesDoJogo(jogo.id);
+      setPalpites(data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditPalpite = (p: any) => {
+    setEditingPalpiteId(p.id);
+    setPalpiteForm({
+      golsCasa: String(p.golsCasa),
+      golsFora: String(p.golsFora),
+      vencedorPenaltis: p.vencedorPenaltis || '',
+    });
+  };
+
+  const savePalpite = async () => {
+    if (!editingPalpiteId) return;
+    try {
+      const api = (await import('../../../lib/api')).default;
+      await api.patch(`/api/palpites/${editingPalpiteId}/admin`, {
+        golsCasa: Number(palpiteForm.golsCasa),
+        golsFora: Number(palpiteForm.golsFora),
+        vencedorPenaltis: palpiteForm.vencedorPenaltis || null,
+      });
+      setEditingPalpiteId(null);
+      loadPalpites();
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao salvar palpite');
+    }
+  };
+
+  return (
+    <div className="py-4 border-b border-gray-100 last:border-0 relative">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+            {jogo.timeCasa?.nome} <span className="text-slate-300 font-light italic">vs</span> {jogo.timeFora?.nome}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 font-medium mt-1">
+            <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded">{jogo.bolao?.nome}</span>
+            <span className="bg-slate-100 px-1.5 py-0.5 rounded">{jogo.rodada?.nome}</span>
+            <span>•</span>
+            <span className="text-slate-400">{new Date(jogo.dataHora).toLocaleString('pt-BR')}</span>
+          </div>
+
+          <div className="flex items-center gap-4 mt-3">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${jogo.status === 'PALPITES' ? 'bg-green-500 text-white' :
+              jogo.status === 'FECHADO' ? 'bg-amber-500 text-white' :
+                'bg-slate-500 text-white'
+              }`}>
+              {jogo.status === 'PALPITES' ? 'Aberto' : jogo.status === 'FECHADO' ? 'Fechado' : 'Encerrado'}
+            </span>
+            <div className="flex items-center flex-wrap gap-2 text-sm text-slate-800">
+              <span className="font-bold">{jogo.timeCasa.nome}</span>
+              <div className="flex items-center gap-1">
+                <span className="bg-slate-100 px-2 py-1 rounded font-black min-w-[50px] text-center">
+                  {jogo.resultadoCasa ?? '-'} x {jogo.resultadoFora ?? '-'}
+                </span>
+              </div>
+              <span className="font-bold">{jogo.timeFora.nome}</span>
+              {jogo.mataMata && jogo.vencedorPenaltis && (
+                <span className="px-2 py-1 bg-purple-600 text-white rounded text-[10px] font-black uppercase shadow-sm">
+                  Pên: {jogo.vencedorPenaltis === 'CASA' ? jogo.timeCasa.nome : jogo.timeFora.nome}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <button
+              className="text-[11px] font-black uppercase tracking-wider bg-slate-900 text-white px-3 py-1.5 rounded-lg shadow-sm hover:scale-105 transition-transform"
+              onClick={onEdit}
+            >
+              Editar Jogo
+            </button>
+            <button
+              className="text-[11px] font-black uppercase tracking-wider bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
+              onClick={onDelete}
+            >
+              Excluir
+            </button>
+          </div>
+          <button
+            className="w-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors text-center"
+            onClick={() => {
+              setShowPalpites(!showPalpites);
+              if (!showPalpites) loadPalpites();
+            }}
+          >
+            {showPalpites ? 'Ocultar Palpites' : 'Ver Palpites'}
+          </button>
+        </div>
+      </div>
+
+      {showPalpites && (
+        <div className="mt-4 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden shadow-inner">
+          <div className="px-4 py-3 border-b border-slate-200 bg-white/50 flex justify-between items-center">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Palpites dos Usuários</h4>
+            {loading && <span className="text-[10px] text-blue-500 animate-pulse font-bold">CARREGANDO...</span>}
+          </div>
+          <div className="divide-y divide-slate-100">
+            {palpites.length === 0 && !loading ? (
+              <div className="p-8 text-center text-slate-400 text-sm italic font-medium">Nenhum palpite cadastrado.</div>
+            ) : (
+              palpites.map(p => (
+                <div key={p.id} className="p-3 flex items-center justify-between hover:bg-white/80 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
+                      {p.usuario.nome?.slice(0, 2)}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-700 text-sm">{p.usuario.nome}</span>
+                      <span className="text-[9px] text-slate-400 font-mono">ID: {p.id.slice(0, 8)}</span>
+                    </div>
+                  </div>
+
+                  {editingPalpiteId === p.id ? (
+                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border-2 border-primary-200 shadow-xl z-20">
+                      <input
+                        type="number"
+                        className="w-12 border rounded px-1 py-1 text-center"
+                        value={palpiteForm.golsCasa}
+                        onChange={e => setPalpiteForm({ ...palpiteForm, golsCasa: e.target.value })}
+                      />
+                      <span className="text-slate-300 font-black">X</span>
+                      <input
+                        type="number"
+                        className="w-12 border rounded px-1 py-1 text-center"
+                        value={palpiteForm.golsFora}
+                        onChange={e => setPalpiteForm({ ...palpiteForm, golsFora: e.target.value })}
+                      />
+                      {jogo.mataMata && (
+                        <select
+                          className="text-[11px] font-bold border-2 border-slate-200 rounded-lg px-2 h-10 bg-slate-50 text-slate-700"
+                          value={palpiteForm.vencedorPenaltis}
+                          onChange={e => setPalpiteForm({ ...palpiteForm, vencedorPenaltis: e.target.value })}
+                        >
+                          <option value="">Sem Pênaltis</option>
+                          <option value="CASA">Casa ({jogo.timeCasa.nome})</option>
+                          <option value="FORA">Fora ({jogo.timeFora.nome})</option>
+                        </select>
+                      )}
+                      <div className="flex flex-col gap-1 ml-2">
+                        <button className="bg-primary-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider" onClick={savePalpite}>Salvar</button>
+                        <button className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider" onClick={() => setEditingPalpiteId(null)}>Canc</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <div className="text-base font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+                          {p.golsCasa} <span className="text-slate-300 mx-1">x</span> {p.golsFora}
+                          {p.vencedorPenaltis && (
+                            <span className="ml-2 text-[10px] text-purple-600 font-black uppercase underline decoration-2">
+                              (Pên: {p.vencedorPenaltis === 'CASA' ? 'C' : 'F'})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end min-w-[70px]">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${p.pontuacao > 0 ? 'bg-green-500 text-white shadow-sm' : 'bg-slate-200 text-slate-500'
+                          }`}>
+                          +{p.pontuacao} PTS
+                        </span>
+                        <span className="text-[9px] text-slate-400 mt-1 font-bold">
+                          {p.pontosJogo}J + {p.pontosPenaltis}P
+                        </span>
+                      </div>
+                      <button
+                        className="text-slate-400 hover:text-primary-600 transition-colors p-2"
+                        title="Editar Palpite"
+                        onClick={() => handleEditPalpite(p)}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

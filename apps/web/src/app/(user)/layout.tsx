@@ -2,15 +2,16 @@
 
 import { useAuth, useProtectedPage } from '../providers';
 import ResponsiveNav from '../../components/responsive-nav';
+import { Gamepad2, Trophy, Medal, BarChart2 } from 'lucide-react';
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { user } = useProtectedPage({ roles: ['USUARIO'] });
   const { logout } = useAuth();
   const navItems = [
-    { href: '/dashboard', label: 'Jogos' },
-    { href: '/boloes', label: 'Bolões' },
-    { href: '/campeoes', label: 'Campeões' },
-    { href: '/ranking', label: 'Ranking' },
+    { href: '/dashboard', label: 'Jogos', icon: <Gamepad2 size={18} /> },
+    { href: '/boloes', label: 'Bolões', icon: <Trophy size={18} /> },
+    { href: '/campeoes', label: 'Campeões', icon: <Medal size={18} /> },
+    { href: '/ranking', label: 'Ranking', icon: <BarChart2 size={18} /> },
   ];
 
   return (

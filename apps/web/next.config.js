@@ -7,6 +7,15 @@ const nextConfig = {
   // Allow access to dev assets when using Cloudflare tunnel links
   allowedDevOrigins: ['*.trycloudflare.com', '*.devtunnels.ms', '*.brs.devtunnels.ms'],
 
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+  },
+
   // Proxy para a API
   async rewrites() {
     // Pega a URL do backend das variáveis de ambiente ou usa localhost como fallback

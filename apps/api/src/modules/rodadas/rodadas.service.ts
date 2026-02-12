@@ -11,7 +11,7 @@ import { UpdateRodadaDto } from "./dto/update-rodada.dto";
 
 @Injectable()
 export class RodadasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createRodadaDto: CreateRodadaDto) {
     // Verificar se já existe rodada com mesmo nome (nome é único global)
@@ -25,17 +25,34 @@ export class RodadasService {
       );
     }
 
+    const { bolaoIds, ...data } = createRodadaDto;
+
     const rodada = await this.prisma.rodada.create({
-      data: createRodadaDto,
+      data: {
+        ...data,
+        boloes: {
+          create: bolaoIds?.map((bolaoId) => ({
+            bolao: { connect: { id: bolaoId } },
+          })),
+        },
+      },
     });
 
     return rodada;
   }
 
-  async findAll(ativo?: boolean) {
+  async findAll(ativo?: boolean, bolaoId?: string) {
     const where: any = {};
     if (ativo !== undefined) {
       where.ativo = ativo;
+    }
+
+    if (bolaoId) {
+      where.boloes = {
+        some: {
+          bolaoId: bolaoId
+        }
+      };
     }
 
     const rodadas = await this.prisma.rodada.findMany({
@@ -47,12 +64,23 @@ export class RodadasService {
             jogos: true,
           },
         },
+        boloes: {
+          select: {
+            bolao: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+        },
       },
     });
 
     return rodadas.map((rodada) => ({
       ...rodada,
       totalJogos: rodada._count.jogos,
+      boloes: rodada.boloes.map((b) => b.bolao),
     }));
   }
 
@@ -93,6 +121,16 @@ export class RodadasService {
             jogos: true,
           },
         },
+        boloes: {
+          select: {
+            bolao: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -103,6 +141,7 @@ export class RodadasService {
     return {
       ...rodada,
       totalJogos: rodada._count.jogos,
+      boloes: rodada.boloes.map((b) => b.bolao),
     };
   }
 
@@ -128,9 +167,21 @@ export class RodadasService {
       }
     }
 
+    const { bolaoIds, ...data } = updateRodadaDto;
+
     const updatedRodada = await this.prisma.rodada.update({
       where: { id },
-      data: updateRodadaDto,
+      data: {
+        ...data,
+        boloes: bolaoIds
+          ? {
+            deleteMany: {},
+            create: bolaoIds.map((bolaoId) => ({
+              bolao: { connect: { id: bolaoId } },
+            })),
+          }
+          : undefined,
+      },
     });
 
     return updatedRodada;

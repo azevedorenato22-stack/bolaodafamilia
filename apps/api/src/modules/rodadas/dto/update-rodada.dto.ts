@@ -5,6 +5,8 @@ import {
   Min,
   MaxLength,
   IsBoolean,
+  IsArray,
+  IsUUID,
 } from "class-validator";
 
 export class UpdateRodadaDto {
@@ -25,4 +27,9 @@ export class UpdateRodadaDto {
   @IsOptional()
   @IsBoolean({ message: "Ativo deve ser um booleano" })
   ativo?: boolean;
+
+  @IsOptional()
+  @IsArray({ message: "bolaoIds deve ser um array" })
+  @IsUUID("4", { each: true, message: "Cada ID de bolão deve ser um UUID válido" })
+  bolaoIds?: string[];
 }

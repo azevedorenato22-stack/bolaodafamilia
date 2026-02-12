@@ -59,8 +59,9 @@ export class RankingService {
   private ordenar(rows: RankingRow[]) {
     return rows
       .sort((a, b) => {
+        if (b.pontosTotal !== a.pontosTotal) return b.pontosTotal - a.pontosTotal; // 1. Pontos Totais (Critério principal)
         if (b.pontosCampeao !== a.pontosCampeao)
-          return b.pontosCampeao - a.pontosCampeao; // 1. Pontos Campeão (Plan says this first? "Critérios: Pontos Campeão, PC, EM, PV, DG, PP, V")
+          return b.pontosCampeao - a.pontosCampeao; // 2. Pontos Campeão (Critério desempate)
         if (b.pc !== a.pc) return b.pc - a.pc;
         if (b.em !== a.em) return b.em - a.em;
         if (b.pv !== a.pv) return b.pv - a.pv;
@@ -88,6 +89,8 @@ export class RankingService {
         return { pc: 0, pv: 0, dg: 0, pp: 0, em: 0, v: 1, e: 0 };
       case "empate":
         return { pc: 0, pv: 0, dg: 0, pp: 0, em: 1, v: 0, e: 0 };
+      case "penaltis":
+        return { pc: 0, pv: 0, dg: 0, pp: 0, em: 0, v: 0, e: 0 };
       case "errou":
         return { pc: 0, pv: 0, dg: 0, pp: 0, em: 0, v: 0, e: 1 };
       default:
@@ -144,7 +147,9 @@ export class RankingService {
         usuarioId: { in: participantesIds },
         jogo: {
           bolaoId,
-          status: status ? (status as any) : "ENCERRADO",
+          // O usuário pediu para atualizar ranking com status FECHADO e ENCERRADO.
+          // Antes estava fixo ENCERRADO. Vamos ajustar para IN [FECHADO, ENCERRADO] se status não for passado.
+          status: status ? (status as any) : { in: ["FECHADO", "ENCERRADO"] },
           ...(rodadaId ? { rodadaId } : {}),
           ...(dateFilter as any),
         },
@@ -152,6 +157,8 @@ export class RankingService {
       select: {
         usuarioId: true,
         pontuacao: true,
+        pontosJogo: true,
+        pontosPenaltis: true,
         tipoPontuacao: true,
         vencedorPenaltis: true,
         jogo: { select: { vencedorPenaltis: true } }
@@ -201,8 +208,11 @@ export class RankingService {
 
     for (const p of palpitesJogos) {
       if (!base[p.usuarioId]) continue;
-      base[p.usuarioId].pontosJogos += p.pontuacao ?? 0;
-      base[p.usuarioId].pontosTotal += p.pontuacao ?? 0;
+
+      const pts = p.pontuacao ?? 0;
+      base[p.usuarioId].pontosJogos += pts;
+      base[p.usuarioId].pontosTotal += pts;
+
       const bucket = this.mapTipoPontuacao(p.tipoPontuacao);
       base[p.usuarioId].pc += bucket.pc;
       base[p.usuarioId].pv += bucket.pv;
@@ -212,12 +222,8 @@ export class RankingService {
       base[p.usuarioId].v += bucket.v;
       base[p.usuarioId].e += bucket.e;
 
-      // Check if penalty points were awarded (heuristic: verify if user guessed penalty correctly AND game had penalties)
-      // Actually, pontuacao.ts adds points but doesn't store "acertouPenaltis" boolean in DB separately,
-      // but we can infer or we should have saved it?
-      // For now, we rely on the pointsTotal.
-      // But we want to track 'penaltis' count.
-      if (p.vencedorPenaltis && p.jogo?.vencedorPenaltis && p.vencedorPenaltis === p.jogo.vencedorPenaltis) {
+      // Se teve pontos de penaltis, conta como acerto de penalti
+      if ((p.pontosPenaltis ?? 0) > 0) {
         base[p.usuarioId].penaltis += 1;
       }
     }
@@ -232,15 +238,33 @@ export class RankingService {
     return this.ordenar(rows);
   }
 
-  async extratoUsuario(bolaoId: string, usuarioId: string) {
+  async extratoUsuario(bolaoId: string, usuarioId: string, filters?: RankingFilters) {
     const bolao = await this.prisma.bolao.findUnique({
       where: { id: bolaoId },
       select: { id: true, nome: true },
     });
     if (!bolao) throw new NotFoundException("Bolão não encontrado");
 
+    const dateRange = this.parseDateOnlyToLocalRange(filters?.data);
+    const dateFilter = dateRange
+      ? {
+        dataHora: {
+          gte: dateRange.start,
+          lte: dateRange.end,
+        },
+      }
+      : {};
+
     const palpitesJogos = await this.prisma.palpite.findMany({
-      where: { usuarioId, jogo: { bolaoId } },
+      where: {
+        usuarioId,
+        jogo: {
+          bolaoId,
+          ...(filters?.rodadaId ? { rodadaId: filters.rodadaId } : {}),
+          ...(filters?.status ? { status: filters.status as any } : {}),
+          ...(dateFilter as any),
+        }
+      },
       select: {
         id: true,
         jogo: {
@@ -261,6 +285,8 @@ export class RankingService {
         golsFora: true,
         vencedorPenaltis: true,
         pontuacao: true,
+        pontosJogo: true,
+        pontosPenaltis: true,
         tipoPontuacao: true,
         calculadoEm: true,
         createdAt: true,
@@ -324,9 +350,15 @@ export class RankingService {
       resumo.pontosTotal += p.pontuacao ?? 0;
     }
 
+    // Calcular posição no ranking
+    const ranking = await this.rankingGeral({ bolaoId, rodadaId: filters?.rodadaId, status: filters?.status, data: filters?.data });
+    const userRank = ranking.find(r => r.usuarioId === usuarioId);
+    const posicao = userRank?.posicao || '-';
+
     return {
       bolao: { id: bolao.id, nome: bolao.nome },
       resumo,
+      posicao, // Nova prop
       palpitesJogos,
       palpitesCampeao,
     };

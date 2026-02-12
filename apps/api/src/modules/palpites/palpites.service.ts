@@ -8,10 +8,14 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreatePalpiteDto } from "./dto/create-palpite.dto";
 import { UpdatePalpiteDto } from "./dto/update-palpite.dto";
 import { StatusJogo, TipoUsuario, VencedorPenaltis } from "@prisma/client";
+import { JogosService } from "../jogos/jogos.service";
 
 @Injectable()
 export class PalpitesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jogosService: JogosService,
+  ) { }
 
   private readonly BLOQUEIO_MINUTOS = Number(
     process.env.BLOQUEIO_PALPITE_MINUTOS ?? 15,
@@ -190,7 +194,7 @@ export class PalpitesService {
       updatePalpiteDto.vencedorPenaltis ?? palpite.vencedorPenaltis,
     );
 
-    return this.prisma.palpite.update({
+    const updated = await this.prisma.palpite.update({
       where: { id },
       data: {
         jogoId: targetJogoId,
@@ -200,6 +204,12 @@ export class PalpitesService {
           updatePalpiteDto.vencedorPenaltis ?? palpite.vencedorPenaltis,
       },
     });
+
+    if (isAdmin && forceAdmin && jogo.status === StatusJogo.ENCERRADO) {
+      await this.jogosService.recalcularPontuacao(targetJogoId);
+    }
+
+    return updated;
   }
 
   async findByJogo(jogoId: string, user: any) {

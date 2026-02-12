@@ -35,7 +35,8 @@ export default function CampeoesPage() {
     setLoading(true);
     setErro(null);
     try {
-      const [camps] = await Promise.all([listarCampeoesPorBolao(bolao)]);
+      const [campsRaw] = await Promise.all([listarCampeoesPorBolao(bolao)]);
+      const camps = campsRaw.sort((a: any, b: any) => a.nome.localeCompare(b.nome));
       // para cada campeão, pegar meu palpite (se visível)
       const withPalpite = await Promise.all(
         camps.map(async (c: any) => {
@@ -99,31 +100,35 @@ export default function CampeoesPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Campeões</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Campeões</h1>
+          <p className="text-sm text-slate-500 font-medium">
             Escolha o campeão para cada categoria do bolão antes do prazo.
           </p>
         </div>
+
         {boloesch.length > 0 && (
-          <select
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            value={bolaoId}
-            onChange={async e => {
-              const id = e.target.value;
-              setBolaoId(id);
-              const selected = boloesch.find(b => b.id === id);
-              setTimes((selected?.times ?? []).map((bt: any) => bt.time ?? bt));
-              await load(id, selected);
-            }}
-          >
-            {boloesch.map(b => (
-              <option key={b.id} value={b.id}>
-                {b.nome}
-              </option>
-            ))}
-          </select>
+          <div className="w-full sm:w-auto min-w-[200px] max-w-xs">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Bolão</label>
+            <select
+              className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+              value={bolaoId}
+              onChange={async e => {
+                const id = e.target.value;
+                setBolaoId(id);
+                const selected = boloesch.find(b => b.id === id);
+                setTimes((selected?.times ?? []).map((bt: any) => bt.time ?? bt));
+                await load(id, selected);
+              }}
+            >
+              {boloesch.map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.nome}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
@@ -152,13 +157,13 @@ export default function CampeoesPage() {
           const badgeLabel = status === 'RESULTADO_DEFINIDO'
             ? 'Resultado definido'
             : status === 'PRAZO_ENCERRADO'
-            ? 'Prazo encerrado'
-            : 'Aberto para palpites';
+              ? 'Prazo encerrado'
+              : 'Aberto para palpites';
           const badgeColor = status === 'RESULTADO_DEFINIDO'
             ? 'bg-emerald-50 text-emerald-700'
             : status === 'PRAZO_ENCERRADO'
-            ? 'bg-gray-100 text-gray-700'
-            : 'bg-blue-50 text-blue-700';
+              ? 'bg-gray-100 text-gray-700'
+              : 'bg-blue-50 text-blue-700';
           const mostrarPalpites =
             status !== 'ABERTO'; // após prazo ou resultado, mostrar todos
           return (

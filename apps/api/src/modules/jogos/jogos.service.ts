@@ -17,10 +17,10 @@ export class JogosService {
   constructor(private prisma: PrismaService) { }
 
   private readonly allowedTransitions: Record<StatusJogo, StatusJogo[]> = {
-    // Permite encerrar direto sem passar por EM_ANDAMENTO (ex.: placar já conhecido).
-    [StatusJogo.PALPITES]: [StatusJogo.EM_ANDAMENTO, StatusJogo.ENCERRADO],
-    [StatusJogo.EM_ANDAMENTO]: [StatusJogo.ENCERRADO],
-    [StatusJogo.ENCERRADO]: [StatusJogo.PALPITES, StatusJogo.EM_ANDAMENTO],
+    // Permite encerrar direto sem passar por FECHADO (ex.: placar já conhecido).
+    [StatusJogo.PALPITES]: [StatusJogo.FECHADO, StatusJogo.ENCERRADO],
+    [StatusJogo.FECHADO]: [StatusJogo.ENCERRADO],
+    [StatusJogo.ENCERRADO]: [StatusJogo.PALPITES, StatusJogo.FECHADO],
   };
 
   private readonly jogoInclude = {
@@ -31,8 +31,25 @@ export class JogosService {
   };
 
   private mapJogo(jogo: any) {
+    let status = jogo.status;
+
+    // Virtualmente fecha o jogo se estiver em PALPITES mas já passou do tempo limite (15 min)
+    if (status === StatusJogo.PALPITES) {
+      const now = new Date();
+      const dataHora = new Date(jogo.dataHora);
+      const diffMinutes = (dataHora.getTime() - now.getTime()) / 60000;
+
+      // 15 minutos de tolerância antes do jogo. 
+      // Apenas fecha visualmente se estiver no intervalo crítico (15 min antes até 4h depois).
+      // Isso permite que o Admin reabra jogos muito antigos ou futuros distantes sem ser barrado.
+      if (diffMinutes < 15 && diffMinutes > -240) {
+        status = StatusJogo.FECHADO;
+      }
+    }
+
     return {
       ...jogo,
+      status,
     };
   }
 
@@ -210,10 +227,6 @@ export class JogosService {
           "Em caso de empate no mata-mata, informe o vencedor nos pênaltis",
         );
       }
-    } else if (vencedorPenaltis) {
-      throw new BadRequestException(
-        "Vencedor nos pênaltis só pode ser informado em caso de empate no mata-mata",
-      );
     }
   }
 
@@ -233,7 +246,7 @@ export class JogosService {
     return jogo;
   }
 
-  private async recalcularPontuacao(jogoId: string) {
+  async recalcularPontuacao(jogoId: string) {
     const jogo = await this.prisma.jogo.findUnique({
       where: { id: jogoId },
       include: {
@@ -261,7 +274,7 @@ export class JogosService {
             ptsPlacarPerdedor: jogo.bolao.ptsPlacarPerdedor,
             ptsEmpate: jogo.bolao.ptsEmpate,
             ptsEmpateExato: jogo.bolao.ptsEmpateExato,
-            ptsPenaltis: jogo.bolao.ptsPenaltis,
+            ptsPenaltis: jogo.bolao.ptsPenaltis ?? 10,
           },
           jogo: {
             resultadoCasa: jogo.resultadoCasa ?? 0,
@@ -280,6 +293,8 @@ export class JogosService {
           where: { id: palpite.id },
           data: {
             pontuacao: resultado.pontos,
+            pontosJogo: resultado.pontosJogo,
+            pontosPenaltis: resultado.pontosPenaltis,
             tipoPontuacao: resultado.tipo,
             calculadoEm: new Date(),
           },
@@ -348,7 +363,7 @@ export class JogosService {
     this.validateEncerramentoPayload(targetStatus, {
       resultadoCasa: resultadoCasaFinal,
       resultadoFora: resultadoForaFinal,
-      vencedorPenaltis,
+      vencedorPenaltis: vencedorPenaltisFinal,
       mataMata: mataMataFlag,
     });
 
@@ -394,9 +409,7 @@ export class JogosService {
     }
 
     if (filters.periodo === "FUTURO") {
-      const endOfToday = new Date();
-      endOfToday.setHours(23, 59, 59, 999);
-      where.dataHora = { gt: endOfToday };
+      where.status = { in: [StatusJogo.PALPITES, StatusJogo.FECHADO] };
     } else if (filters.data) {
       where.dataHora = this.buildDayRange(filters.data);
     } else if (filters.periodo === "HOJE") {
@@ -470,14 +483,14 @@ export class JogosService {
       resultadoForaFinal !== null &&
       resultadoCasaFinal === resultadoForaFinal;
     const vencedorPenaltisFinal =
-      shouldPersistResultado && mataMataFlag && empatePersistido
+      mataMataFlag && vencedorPenaltisCandidate
         ? vencedorPenaltisCandidate
         : null;
 
     this.validateEncerramentoPayload(nextStatus, {
       resultadoCasa: resultadoCasaFinal,
       resultadoFora: resultadoForaFinal,
-      vencedorPenaltis: vencedorPenaltisCandidate,
+      vencedorPenaltis: vencedorPenaltisFinal,
       mataMata: mataMataFlag,
     });
 
@@ -596,5 +609,43 @@ export class JogosService {
     });
 
     return { message: "Jogo removido com sucesso" };
+  }
+
+  async listarPalpitesDoJogo(id: string, user: any) {
+    const jogo = await this.prisma.jogo.findUnique({
+      where: { id },
+    });
+
+    if (!jogo) {
+      throw new NotFoundException("Jogo não encontrado");
+    }
+
+    const isAdmin = user?.tipo === "ADMIN";
+
+    if (!isAdmin && jogo.status === StatusJogo.PALPITES) {
+      throw new BadRequestException("Os palpites só estarão visíveis após o fechamento do jogo.");
+    }
+
+    const palpites = await this.prisma.palpite.findMany({
+      where: { jogoId: id },
+      include: {
+        usuario: { select: { id: true, nome: true, usuario: true } },
+      },
+      orderBy: { pontuacao: "desc" }, // Mostra quem fez mais pontos primeiro
+    });
+
+    return palpites.map(p => ({
+      id: p.id,
+      golsCasa: p.golsCasa,
+      golsFora: p.golsFora,
+      vencedorPenaltis: p.vencedorPenaltis,
+      pontuacao: p.pontuacao,
+      pontosJogo: p.pontosJogo,
+      pontosPenaltis: p.pontosPenaltis,
+      usuario: {
+        id: p.usuario.id,
+        nome: p.usuario.nome || p.usuario.usuario,
+      },
+    }));
   }
 }

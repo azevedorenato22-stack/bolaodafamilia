@@ -57,7 +57,7 @@ export class UpdateJogoDto {
 
   @IsOptional()
   @IsEnum(VencedorPenaltis)
-  vencedorPenaltis?: VencedorPenaltis;
+  vencedorPenaltis?: VencedorPenaltis | null;
 
   @IsOptional()
   @IsEnum(StatusJogo)

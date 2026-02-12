@@ -10,10 +10,14 @@ import { CreateBolaoDto } from "./dto/create-bolao.dto";
 import { UpdateBolaoDto } from "./dto/update-bolao.dto";
 import { AddTimesBolaoDto } from "./dto/add-times-bolao.dto";
 import { Prisma, TipoUsuario } from "@prisma/client";
+import { JogosService } from "../jogos/jogos.service";
 
 @Injectable()
 export class BoloesService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private jogosService: JogosService,
+  ) { }
 
   private getBolaoInclude(options?: {
     includeParticipantes?: boolean;
@@ -218,11 +222,14 @@ export class BoloesService {
     const { timeIds, rodadaIds, usuarioIds, ...bolaoData } = createBolaoDto;
 
     // Validar data final (considerar fim do dia para evitar bloqueio por timezone)
-    const dataFinal = new Date(createBolaoDto.dataFim);
-    if (Number.isNaN(dataFinal.getTime())) {
-      throw new BadRequestException("Data final inválida");
+    let dataFinal: Date | null = null;
+    if (createBolaoDto.dataFim) {
+      dataFinal = new Date(createBolaoDto.dataFim);
+      if (Number.isNaN(dataFinal.getTime())) {
+        throw new BadRequestException("Data final inválida");
+      }
+      dataFinal.setHours(23, 59, 59, 999);
     }
-    dataFinal.setHours(23, 59, 59, 999);
 
     // Verificar se já existe bolão com mesmo nome
     const existingBolao = await this.prisma.bolao.findUnique({
@@ -505,6 +512,30 @@ export class BoloesService {
         include: this.getBolaoInclude({ includeParticipantes: true }),
       });
     });
+
+    // Se houve mudança em pontuação, recalcula todos os jogos encerrados desse bolão
+    const pontuacaoMudou =
+      updateBolaoDto.pts_resultado_exato !== undefined ||
+      updateBolaoDto.pts_vencedor_gols !== undefined ||
+      updateBolaoDto.pts_diferenca_gols !== undefined ||
+      updateBolaoDto.pts_empate_exato !== undefined ||
+      updateBolaoDto.pts_empate !== undefined ||
+      updateBolaoDto.pts_vencedor !== undefined ||
+      updateBolaoDto.pts_placar_perdedor !== undefined ||
+      updateBolaoDto.pts_campeao !== undefined ||
+      updateBolaoDto.pts_penaltis !== undefined;
+
+    if (pontuacaoMudou) {
+      const jogosEncerrados = await this.prisma.jogo.findMany({
+        where: { bolaoId: id, status: "ENCERRADO" },
+        select: { id: true },
+      });
+
+      // Recalcula em paralelo (Promise.all)
+      await Promise.all(
+        jogosEncerrados.map(jogo => this.jogosService.recalcularPontuacao(jogo.id))
+      );
+    }
 
     return this.mapBolaoResponse(updatedBolao);
   }

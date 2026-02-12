@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 type NavItem = {
   href: string;
   label: string;
+  icon?: React.ReactNode;
 };
 
 type ResponsiveNavProps = {
@@ -30,10 +31,9 @@ export default function ResponsiveNav({ items, onLogout }: ResponsiveNavProps) {
   };
 
   const linkClass = (href: string) =>
-    `block rounded-md px-3 py-2 text-sm transition-colors ${
-      isActive(href)
-        ? 'bg-primary-50 text-primary-700 font-semibold'
-        : 'text-gray-700 hover:bg-gray-100'
+    `flex items-center rounded-md px-3 py-2 text-sm transition-colors ${isActive(href)
+      ? 'bg-primary-50 text-primary-700 font-semibold'
+      : 'text-gray-700 hover:bg-gray-100'
     }`;
 
   return (
@@ -41,6 +41,7 @@ export default function ResponsiveNav({ items, onLogout }: ResponsiveNavProps) {
       <div className="hidden md:flex items-center gap-2">
         {items.map(item => (
           <Link key={item.href} href={item.href} className={linkClass(item.href)}>
+            {item.icon && <span className="mr-2">{item.icon}</span>}
             {item.label}
           </Link>
         ))}
@@ -79,6 +80,7 @@ export default function ResponsiveNav({ items, onLogout }: ResponsiveNavProps) {
                   className={linkClass(item.href)}
                   onClick={() => setOpen(false)}
                 >
+                  {item.icon && <span className="mr-2">{item.icon}</span>}
                   {item.label}
                 </Link>
               ))}

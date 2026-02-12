@@ -3,7 +3,7 @@ import { RankingService } from "./ranking.service";
 
 @Controller("ranking")
 export class RankingController {
-  constructor(private readonly rankingService: RankingService) {}
+  constructor(private readonly rankingService: RankingService) { }
 
   @Get("bolao/:bolaoId")
   rankingGeral(
@@ -42,7 +42,15 @@ export class RankingController {
   extrato(
     @Param("bolaoId") bolaoId: string,
     @Param("usuarioId") usuarioId: string,
+    @Query("rodadaId") rodadaId?: string,
+    @Query("status") status?: string,
+    @Query("data") data?: string,
   ) {
-    return this.rankingService.extratoUsuario(bolaoId, usuarioId);
+    return this.rankingService.extratoUsuario(bolaoId, usuarioId, {
+      bolaoId,
+      rodadaId,
+      status,
+      data,
+    });
   }
 }

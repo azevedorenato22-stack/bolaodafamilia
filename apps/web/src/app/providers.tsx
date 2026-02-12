@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { mensagemAtual } from '../services/mensagem.service';
+import { mensagensAtivas } from '../services/mensagem.service';
 import { me } from '../services/auth.service';
 
 type User = {
@@ -82,8 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Mensagem do dia
   useEffect(() => {
-    mensagemAtual()
-      .then(setMensagem)
+    mensagensAtivas()
+      .then(msgs => {
+        const msg = msgs.find((m: any) => !['pato', 'lider', 'destaque'].includes(m.tipo)) || msgs[0] || null;
+        setMensagem(msg);
+      })
       .catch(() => setMensagem(null));
   }, []);
 

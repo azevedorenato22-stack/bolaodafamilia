@@ -21,5 +21,5 @@ export class UpdatePalpiteDto {
 
   @IsOptional()
   @IsEnum(VencedorPenaltis)
-  vencedorPenaltis?: VencedorPenaltis;
+  vencedorPenaltis?: VencedorPenaltis | null;
 }

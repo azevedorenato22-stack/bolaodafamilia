@@ -1,7 +1,7 @@
 import api from '@/lib/api';
 
-export async function mensagemAtual() {
-  const { data } = await api.get('/api/mensagem-dia');
+export async function mensagensAtivas() {
+  const { data } = await api.get('/api/mensagem-dia/ativas');
   return data;
 }
 

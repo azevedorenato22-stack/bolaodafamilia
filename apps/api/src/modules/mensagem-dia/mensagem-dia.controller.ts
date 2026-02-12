@@ -23,10 +23,10 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 export class MensagemDiaController {
   constructor(private readonly mensagemDiaService: MensagemDiaService) { }
 
-  @Get()
+  @Get("ativas")
   @Public()
-  findActive() {
-    return this.mensagemDiaService.findActive();
+  findAllActive() {
+    return this.mensagemDiaService.findAllActive();
   }
 
   @Post()

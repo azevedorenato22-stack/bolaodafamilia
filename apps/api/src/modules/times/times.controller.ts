@@ -127,4 +127,15 @@ export class TimesController {
   remove(@Param("id") id: string, @Query("senha") senha?: string) {
     return this.timesService.remove(id, senha);
   }
+
+  /**
+   * Remover categoria (ADMIN apenas)
+   * @returns Mensagem de confirmação
+   */
+  @Delete("categorias/:nome")
+  @Roles(TipoUsuario.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  removeCategoria(@Param("nome") nome: string) {
+    return this.timesService.removeCategoria(nome);
+  }
 }
