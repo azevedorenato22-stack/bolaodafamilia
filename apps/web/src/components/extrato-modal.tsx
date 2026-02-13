@@ -42,7 +42,7 @@ export function ExtratoModal({ bolaoId, usuarioId, filters, onClose }: Props) {
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-bold text-gray-900">Extrato do Usuário</h3>
             {dados && (
-              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+              <span className="bg-green-100 text-green-700 px-4 py-2 rounded-xl text-xl font-black shadow-sm tracking-tight border border-green-200">
                 Total: {total} pts
               </span>
             )}
@@ -58,39 +58,67 @@ export function ExtratoModal({ bolaoId, usuarioId, filters, onClose }: Props) {
             <div>
               <p className="text-xs uppercase text-gray-500">Palpites de jogos</p>
               <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg">
-                {dados.palpitesJogos.map((p: any) => (
-                  <div key={p.id} className="p-2 text-sm flex items-center justify-between">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">
-                        {p.jogo.rodada?.nome}
-                      </span>
-                      <p className="font-semibold">
-                        {p.jogo.timeCasa.nome} x {p.jogo.timeFora.nome}
-                      </p>
-                      <p className="text-gray-600">
-                        Palpite {p.golsCasa}x{p.golsFora}
-                        {p.jogo.mataMata && p.vencedorPenaltis && (
-                          <span className="text-purple-600 font-bold ml-1">({p.vencedorPenaltis})</span>
-                        )}
-                        • Resultado{' '}
-                        {p.jogo.resultadoCasa}x{p.jogo.resultadoFora}
-                        {p.jogo.mataMata && p.jogo.vencedorPenaltis && (
-                          <span className="text-purple-600 font-bold ml-1">({p.jogo.vencedorPenaltis})</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-primary-700 font-semibold block">{p.pontuacao}</span>
-                      {/* Breakdown de pontos */}
-                      {(p.pontosPenaltis > 0) && (
-                        <div className="text-[10px] text-gray-400 font-medium leading-tight mt-1">
-                          <span className="block">Jogo: {p.pontosJogo}</span>
-                          <span className="block text-purple-600 font-bold">Pênaltis: {p.pontosPenaltis}</span>
+                {dados.palpitesJogos.map((p: any) => {
+                  const getNomeVencedor = (tipo: string) => tipo === 'CASA' ? p.jogo.timeCasa.nome : tipo === 'FORA' ? p.jogo.timeFora.nome : tipo;
+
+                  return (
+                    <div key={p.id} className="p-3 text-sm flex items-start justify-between bg-white hover:bg-slate-50 transition-colors">
+                      <div className="flex flex-col gap-1 pr-2">
+                        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-0.5">
+                          {p.jogo.rodada?.nome}
+                        </span>
+                        <p className="font-bold text-slate-800 text-base mb-1">
+                          {p.jogo.timeCasa.nome} <span className="text-slate-300 font-light">x</span> {p.jogo.timeFora.nome}
+                        </p>
+
+                        <div className="flex flex-col gap-1 text-sm bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 font-medium text-xs uppercase tracking-wide w-16">Palpite:</span>
+                            <span className="font-bold text-slate-700">
+                              {p.golsCasa} <span className="text-slate-300 mx-0.5">x</span> {p.golsFora}
+                            </span>
+                            {p.jogo.mataMata && p.vencedorPenaltis && (
+                              <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 uppercase">
+                                Pên: {getNomeVencedor(p.vencedorPenaltis)}
+                              </span>
+                            )}
+                          </div>
+
+                          {(p.jogo.resultadoCasa !== null && p.jogo.resultadoCasa !== undefined) && (
+                            <div className="flex items-center gap-2 border-t border-slate-200 pt-1 mt-0.5">
+                              <span className="text-slate-500 font-medium text-xs uppercase tracking-wide w-16">Resultado:</span>
+                              <span className="font-black text-slate-900">
+                                {p.jogo.resultadoCasa} <span className="text-slate-300 mx-0.5">x</span> {p.jogo.resultadoFora}
+                              </span>
+                              {p.jogo.mataMata && p.jogo.vencedorPenaltis && (
+                                <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 uppercase">
+                                  Pên: {getNomeVencedor(p.jogo.vencedorPenaltis)}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
+
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <span className="text-white bg-green-500 font-black text-lg px-2 py-1 rounded-lg shadow-sm min-w-[50px] text-center block">
+                          +{p.pontuacao}
+                        </span>
+                        {(p.pontosPenaltis > 0 || p.pontosJogo > 0) && (
+                          <div className="text-[10px] text-gray-500 font-medium flex items-center justify-end gap-1 whitespace-nowrap bg-slate-100 px-1.5 py-0.5 rounded">
+                            <span>Jogo: <span className="font-bold text-slate-700">{p.pontosJogo}</span></span>
+                            {p.pontosPenaltis > 0 && (
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-purple-600 font-black">Pên: {p.pontosPenaltis}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {dados.palpitesJogos.length === 0 && (
                   <p className="p-2 text-sm text-gray-600">Nenhum palpite de jogo.</p>
                 )}
