@@ -71,30 +71,34 @@ export function ExtratoModal({ bolaoId, usuarioId, filters, onClose }: Props) {
                           {p.jogo.timeCasa.nome} <span className="text-slate-300 font-light">x</span> {p.jogo.timeFora.nome}
                         </p>
 
-                        <div className="flex flex-col gap-1 text-sm bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500 font-medium text-xs uppercase tracking-wide w-16">Palpite:</span>
-                            <span className="font-bold text-slate-700">
-                              {p.golsCasa} <span className="text-slate-300 mx-0.5">x</span> {p.golsFora}
-                            </span>
-                            {p.jogo.mataMata && p.vencedorPenaltis && (
-                              <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 uppercase">
-                                Pên: {getNomeVencedor(p.vencedorPenaltis)}
+                        <div className="flex flex-col gap-2 text-sm bg-slate-50 p-3 rounded-xl border border-slate-100 mt-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                            <span className="text-slate-500 font-bold text-xs uppercase tracking-wide w-20">Palpite:</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-800 text-base">
+                                {p.golsCasa} <span className="text-slate-300 mx-0.5">x</span> {p.golsFora}
                               </span>
-                            )}
+                              {p.jogo.mataMata && p.vencedorPenaltis && (
+                                <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 uppercase whitespace-nowrap">
+                                  Pên: {getNomeVencedor(p.vencedorPenaltis)}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {(p.jogo.resultadoCasa !== null && p.jogo.resultadoCasa !== undefined) && (
-                            <div className="flex items-center gap-2 border-t border-slate-200 pt-1 mt-0.5">
-                              <span className="text-slate-500 font-medium text-xs uppercase tracking-wide w-16">Resultado:</span>
-                              <span className="font-black text-slate-900">
-                                {p.jogo.resultadoCasa} <span className="text-slate-300 mx-0.5">x</span> {p.jogo.resultadoFora}
-                              </span>
-                              {p.jogo.mataMata && p.jogo.vencedorPenaltis && (
-                                <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 uppercase">
-                                  Pên: {getNomeVencedor(p.jogo.vencedorPenaltis)}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 border-t border-slate-200 pt-2">
+                              <span className="text-slate-500 font-bold text-xs uppercase tracking-wide w-20">Resultado:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-slate-900 text-base">
+                                  {p.jogo.resultadoCasa} <span className="text-slate-300 mx-0.5">x</span> {p.jogo.resultadoFora}
                                 </span>
-                              )}
+                                {p.jogo.mataMata && p.jogo.vencedorPenaltis && (
+                                  <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 uppercase whitespace-nowrap">
+                                    Pên: {getNomeVencedor(p.jogo.vencedorPenaltis)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
