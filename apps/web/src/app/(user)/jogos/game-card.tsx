@@ -111,12 +111,6 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                         )}
 
                         <span className="uppercase">{jogo.timeFora.nome}</span>
-
-                        {jogo.mataMata && jogo.vencedorPenaltis && (isEncerrado || jogo.status === 'FECHADO' || jogo.status === 'AO_VIVO') && (
-                            <span className="text-[10px] font-black text-white bg-purple-600 px-2 py-1 rounded-lg uppercase shadow-sm whitespace-nowrap">
-                                Pên: {jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}
-                            </span>
-                        )}
                     </div>
 
                     {/* Data e Hora (Abaixo do título) */}
@@ -127,13 +121,23 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                         <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide bg-slate-50 px-2 py-1 rounded">
                             {new Date(jogo.dataHora).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '')} • {new Date(jogo.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {jogo.mataMata && (
-                            <span className="text-[9px] font-bold text-white bg-purple-500 px-2 py-1 rounded uppercase tracking-wider">
-                                Mata-Mata
-                            </span>
-                        )}
-
                     </div>
+
+                    {/* Badges (Mata-mata / Pênaltis) - Nova Linha Abaixo */}
+                    {(jogo.mataMata || (jogo.vencedorPenaltis && (isEncerrado || jogo.status === 'FECHADO' || jogo.status === 'AO_VIVO'))) && (
+                        <div className="flex items-center gap-2 mt-2">
+                            {jogo.mataMata && (
+                                <span className="text-[9px] font-bold text-white bg-purple-500 px-2 py-1 rounded uppercase tracking-wider">
+                                    Mata-Mata
+                                </span>
+                            )}
+                            {jogo.mataMata && jogo.vencedorPenaltis && (isEncerrado || jogo.status === 'FECHADO' || jogo.status === 'AO_VIVO') && (
+                                <span className="text-[10px] font-black text-white bg-purple-600 px-2 py-1 rounded-lg uppercase shadow-sm whitespace-nowrap">
+                                    Pên: {jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Área de Palpite (Inputs ou Resumo) */}

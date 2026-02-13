@@ -610,11 +610,28 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
               {jogo.status === 'PALPITES' ? 'Aberto' : jogo.status === 'FECHADO' ? 'Fechado' : 'Encerrado'}
             </span>
           </p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 font-medium mt-1">
-            <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded">{jogo.bolao?.nome}</span>
-            <span className="bg-slate-100 px-1.5 py-0.5 rounded">{jogo.rodada?.nome}</span>
-            <span>•</span>
-            <span className="text-slate-400">{new Date(jogo.dataHora).toLocaleString('pt-BR')}</span>
+          <div className="flex flex-col gap-1 mt-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 font-medium">
+              <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded">{jogo.bolao?.nome}</span>
+              <span className="bg-slate-100 px-1.5 py-0.5 rounded">{jogo.rodada?.nome}</span>
+              <span>•</span>
+              <span className="text-slate-400">{new Date(jogo.dataHora).toLocaleString('pt-BR')}</span>
+            </div>
+
+            {(jogo.mataMata || jogo.vencedorPenaltis) && (
+              <div className="flex items-center gap-2">
+                {jogo.mataMata && (
+                  <span className="px-2 py-0.5 bg-purple-500 text-white rounded text-[9px] font-bold uppercase tracking-wider">
+                    Mata-Mata
+                  </span>
+                )}
+                {jogo.vencedorPenaltis && (
+                  <span className="px-2 py-0.5 bg-purple-600 text-white rounded text-[9px] font-bold uppercase shadow-sm whitespace-nowrap">
+                    Pên: {jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4 mt-3 bg-slate-50 md:bg-transparent p-3 md:p-0 rounded-xl border border-slate-100 md:border-0 justify-between md:justify-start">
@@ -632,11 +649,6 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
                 </span>
               </div>
               <span className="font-bold">{jogo.timeFora.nome}</span>
-              {jogo.mataMata && jogo.vencedorPenaltis && (
-                <span className="px-2 py-1 bg-purple-600 text-white rounded text-[10px] font-black uppercase shadow-sm whitespace-nowrap">
-                  Pên: {jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}
-                </span>
-              )}
             </div>
           </div>
         </div>
