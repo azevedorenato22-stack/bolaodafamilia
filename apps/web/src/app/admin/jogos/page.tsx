@@ -679,76 +679,79 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
               <div className="p-8 text-center text-slate-400 text-sm italic font-medium">Nenhum palpite cadastrado.</div>
             ) : (
               palpites.map(p => (
-                <div key={p.id} className="p-3 flex items-center justify-between hover:bg-white/80 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold text-xs uppercase">
+                <div key={p.id} className="p-3 flex flex-col sm:flex-row items-center justify-between hover:bg-white/80 transition-colors gap-3 border-b border-dashed border-slate-100 last:border-0">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold text-xs uppercase shrink-0">
                       {p.usuario.nome?.slice(0, 2)}
                     </div>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-700 text-sm">{p.usuario.nome}</span>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="font-bold text-slate-700 text-sm truncate">{p.usuario.nome}</span>
                       <span className="text-[9px] text-slate-400 font-mono">ID: {p.id.slice(0, 8)}</span>
                     </div>
                   </div>
 
                   {editingPalpiteId === p.id ? (
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border-2 border-primary-200 shadow-xl z-20">
+                    <div className="flex flex-wrap items-center justify-center gap-2 bg-white p-2 rounded-xl border-2 border-primary-200 shadow-xl z-20 w-full sm:w-auto">
                       <input
                         type="number"
-                        className="w-12 border rounded px-1 py-1 text-center"
+                        className="w-10 border rounded px-1 py-1 text-center text-sm"
                         value={palpiteForm.golsCasa}
                         onChange={e => setPalpiteForm({ ...palpiteForm, golsCasa: e.target.value })}
                       />
-                      <span className="text-slate-300 font-black">X</span>
+                      <span className="text-slate-300 font-black text-xs">X</span>
                       <input
                         type="number"
-                        className="w-12 border rounded px-1 py-1 text-center"
+                        className="w-10 border rounded px-1 py-1 text-center text-sm"
                         value={palpiteForm.golsFora}
                         onChange={e => setPalpiteForm({ ...palpiteForm, golsFora: e.target.value })}
                       />
                       {jogo.mataMata && (
                         <select
-                          className="text-[11px] font-bold border-2 border-slate-200 rounded-lg px-2 h-10 bg-slate-50 text-slate-700"
+                          className="text-[10px] font-bold border-2 border-slate-200 rounded-lg px-1 h-8 bg-slate-50 text-slate-700 max-w-[100px]"
                           value={palpiteForm.vencedorPenaltis}
                           onChange={e => setPalpiteForm({ ...palpiteForm, vencedorPenaltis: e.target.value })}
                         >
-                          <option value="">Sem Pênaltis</option>
-                          <option value="CASA">Casa ({jogo.timeCasa.nome})</option>
-                          <option value="FORA">Fora ({jogo.timeFora.nome})</option>
+                          <option value="">-</option>
+                          <option value="CASA">Casa</option>
+                          <option value="FORA">Fora</option>
                         </select>
                       )}
-                      <div className="flex flex-col gap-1 ml-2">
-                        <button className="bg-primary-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider" onClick={savePalpite}>Salvar</button>
-                        <button className="bg-slate-100 text-slate-500 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider" onClick={() => setEditingPalpiteId(null)}>Canc</button>
+                      <div className="flex gap-1 ml-1">
+                        <button className="bg-primary-600 text-white px-2 py-1 rounded text-[10px] font-bold uppercase" onClick={savePalpite}>OK</button>
+                        <button className="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[10px] font-bold uppercase" onClick={() => setEditingPalpiteId(null)}>X</button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                       <div className="text-center">
-                        <div className="text-base font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
-                          {p.golsCasa} <span className="text-slate-300 mx-1">x</span> {p.golsFora}
+                        <div className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 flex items-center justify-center gap-2 min-w-[80px]">
+                          <span>{p.golsCasa} <span className="text-slate-300 font-light mx-0.5">x</span> {p.golsFora}</span>
                           {p.vencedorPenaltis && (
-                            <span className="ml-2 text-[10px] text-purple-600 font-black uppercase underline decoration-2">
-                              (Pên: {p.vencedorPenaltis === 'CASA' ? 'C' : 'F'})
+                            <span className="text-[9px] text-purple-600 font-black uppercase bg-purple-50 px-1 rounded border border-purple-100 whitespace-nowrap">
+                              P: {p.vencedorPenaltis === 'CASA' ? 'C' : 'F'}
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className="text-right flex flex-col items-end min-w-[70px]">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${p.pontuacao > 0 ? 'bg-green-500 text-white shadow-sm' : 'bg-slate-200 text-slate-500'
-                          }`}>
-                          +{p.pontuacao} PTS
-                        </span>
-                        <span className="text-[9px] text-slate-400 mt-1 font-bold">
-                          {p.pontosJogo}J + {p.pontosPenaltis}P
-                        </span>
+
+                      <div className="flex items-center gap-3">
+                        <div className="text-right flex flex-col items-end min-w-[60px]">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${p.pontuacao > 0 ? 'bg-green-500 text-white shadow-sm' : 'bg-slate-200 text-slate-500'
+                            }`}>
+                            +{p.pontuacao} pts
+                          </span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-bold">
+                            {p.pontosJogo}J + {p.pontosPenaltis}P
+                          </span>
+                        </div>
+                        <button
+                          className="text-slate-400 hover:text-primary-600 transition-colors p-1.5 rounded-full hover:bg-slate-100"
+                          title="Editar Palpite"
+                          onClick={() => handleEditPalpite(p)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                        </button>
                       </div>
-                      <button
-                        className="text-slate-400 hover:text-primary-600 transition-colors p-2"
-                        title="Editar Palpite"
-                        onClick={() => handleEditPalpite(p)}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                      </button>
                     </div>
                   )}
                 </div>
