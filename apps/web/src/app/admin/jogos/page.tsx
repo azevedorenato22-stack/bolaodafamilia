@@ -612,7 +612,6 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
           </p>
           <div className="flex flex-col gap-1 mt-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 font-medium">
-              <span className="text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded">{jogo.bolao?.nome}</span>
               <span className="bg-slate-100 px-1.5 py-0.5 rounded">{jogo.rodada?.nome}</span>
               <span>•</span>
               <span className="text-slate-400">{new Date(jogo.dataHora).toLocaleString('pt-BR')}</span>
