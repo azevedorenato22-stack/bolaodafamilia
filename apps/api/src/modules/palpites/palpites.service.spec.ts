@@ -1,6 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
+import { StatusJogo, TipoUsuario } from "@prisma/client";
 import { PalpitesService } from "./palpites.service";
-import { TipoUsuario, StatusJogo } from "@prisma/client";
 
 const future = new Date("2030-01-01T12:00:00Z");
 const past = new Date("2020-01-01T12:00:00Z");
@@ -31,10 +31,10 @@ function createMockJogosService() {
   } as any;
 }
 
-describe("PalpitesService - bloqueio de horário e permissões", () => {
-  it("bloqueia palpite de usuário comum dentro da janela de 15 minutos", async () => {
+describe("PalpitesService - horario e permissoes", () => {
+  it("bloqueia palpite de usuario comum dentro da janela de 15 minutos", async () => {
     const prisma = createMockPrisma({
-      jogo: { dataHora: new Date(Date.now() + 5 * 60 * 1000) }, // 5 minutos
+      jogo: { dataHora: new Date(Date.now() + 5 * 60 * 1000) },
     });
     const service = new PalpitesService(prisma, createMockJogosService());
 
@@ -44,6 +44,20 @@ describe("PalpitesService - bloqueio de horário e permissões", () => {
         { jogoId: "j1", golsCasa: 1, golsFora: 1 },
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("permite palpite quando jogo antigo foi reaberto para PALPITES", async () => {
+    const prisma = createMockPrisma({
+      jogo: { dataHora: past, status: StatusJogo.PALPITES },
+    });
+    const service = new PalpitesService(prisma, createMockJogosService());
+
+    await expect(
+      service.create(
+        { id: "u1", tipo: TipoUsuario.USUARIO },
+        { jogoId: "j1", golsCasa: 1, golsFora: 1 },
+      ),
+    ).resolves.toEqual({ id: "p1" });
   });
 
   it("bloqueia palpite de admin", async () => {
@@ -60,7 +74,7 @@ describe("PalpitesService - bloqueio de horário e permissões", () => {
     ).rejects.toThrow("Administradores não participam de bolões");
   });
 
-  it("permite palpite em mata-mata sem vencedor nos pênaltis", async () => {
+  it("permite palpite em mata-mata sem vencedor nos penaltis", async () => {
     const prisma = createMockPrisma({
       jogo: { mataMata: true },
     });
@@ -74,7 +88,7 @@ describe("PalpitesService - bloqueio de horário e permissões", () => {
     ).resolves.toEqual({ id: "p1" });
   });
 
-  it("rejeita vencedor nos pênaltis em jogo que não é mata-mata", async () => {
+  it("rejeita vencedor nos penaltis em jogo que nao e mata-mata", async () => {
     const prisma = createMockPrisma({
       jogo: { mataMata: false },
     });

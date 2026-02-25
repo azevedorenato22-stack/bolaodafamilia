@@ -49,16 +49,15 @@ export default function AdminBoloesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bData, tData, rData, uData, cData] = await Promise.all([
+      const [bData, tData, uData, cData] = await Promise.all([
         listarBoloesAdmin(),
         listarTimes(),
-        listarRodadas(),
         listarUsuarios(),
         listarCategorias(),
       ]);
       setBoloes(sortBoloes(bData));
       setTimes(tData);
-      setRodadas(rData);
+      setRodadas([]);
       setUsuarios(uData.filter((u: any) => u.tipo === 'USUARIO'));
       setCategorias(cData);
     } catch {
@@ -104,7 +103,7 @@ export default function AdminBoloesPage() {
     }
   };
 
-  const handleEdit = (b: any) => {
+  const handleEdit = async (b: any) => {
     setEditingId(b.id);
     setMode('edit');
     setForm({
@@ -123,6 +122,13 @@ export default function AdminBoloesPage() {
       rodadaIds: b.rodadas?.map((r: any) => r.id) ?? [],
       usuarioIds: b.participantes?.map((u: any) => u.id) ?? [],
     });
+    try {
+      const rData = await listarRodadas(undefined, b.id);
+      setRodadas(rData ?? []);
+    } catch {
+      setRodadas([]);
+      setError('Erro ao carregar rodadas vinculadas ao bolao.');
+    }
   };
 
   const handleAutoSelectByCategoria = (catNome: string) => {
@@ -153,14 +159,24 @@ export default function AdminBoloesPage() {
         {mode === 'list' ? (
           <button
             className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
-            onClick={() => { setMode('create'); setForm(emptyForm()); setEditingId(null); }}
+            onClick={() => {
+              setMode('create');
+              setForm(emptyForm());
+              setEditingId(null);
+              setRodadas([]);
+            }}
           >
             + Novo Bolão
           </button>
         ) : (
           <button
             className="text-gray-600 hover:text-gray-800"
-            onClick={() => { setMode('list'); setEditingId(null); setForm(emptyForm()); }}
+            onClick={() => {
+              setMode('list');
+              setEditingId(null);
+              setForm(emptyForm());
+              setRodadas([]);
+            }}
           >
             ← Voltar
           </button>
@@ -259,7 +275,11 @@ export default function AdminBoloesPage() {
           <h3 className="text-md font-semibold pt-4">Rodadas do Bolão</h3>
           <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
             {rodadas.length === 0 ? (
-              <p className="text-sm text-gray-500">Nenhuma rodada cadastrada.</p>
+              <p className="text-sm text-gray-500">
+                {editingId
+                  ? 'Nenhuma rodada vinculada a este bolao.'
+                  : 'Nenhuma rodada vinculada. Crie o bolao e vincule as rodadas em Admin > Rodadas.'}
+              </p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                 {rodadas.map((r: any) => (
@@ -334,7 +354,12 @@ export default function AdminBoloesPage() {
             </button>
             <button
               className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
-              onClick={() => { setMode('list'); setEditingId(null); setForm(emptyForm()); }}
+              onClick={() => {
+                setMode('list');
+                setEditingId(null);
+                setForm(emptyForm());
+                setRodadas([]);
+              }}
               disabled={isSaving}
             >
               Cancelar

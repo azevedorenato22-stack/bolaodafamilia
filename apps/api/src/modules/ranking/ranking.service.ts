@@ -86,7 +86,7 @@ export class RankingService {
       case "placar_perdedor":
         return { pc: 0, pv: 0, dg: 0, pp: 1, em: 0, v: 1, e: 0 };
       case "vencedor_simples":
-        return { pc: 0, pv: 0, dg: 0, pp: 0, em: 0, v: 1, e: 0 };
+        return { pc: 0, pv: 1, dg: 0, pp: 0, em: 0, v: 1, e: 0 };
       case "empate":
         return { pc: 0, pv: 0, dg: 0, pp: 0, em: 1, v: 0, e: 0 };
       case "penaltis":

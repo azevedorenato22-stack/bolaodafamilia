@@ -62,19 +62,27 @@ export class JogosService {
     return parsed;
   }
 
-  private buildDayRange(date: string) {
-    const inicio = this.parseDate(`${date}T00:00:00`);
-    const fim = this.parseDate(`${date}T23:59:59.999`);
+  private buildDayRange(date: string, tzOffsetMinutes = 0) {
+    const [year, month, day] = date.split("-").map(Number);
+    if (!year || !month || !day) {
+      throw new BadRequestException("Data inválida para filtro");
+    }
+
+    const inicioUtcMs =
+      Date.UTC(year, month - 1, day, 0, 0, 0, 0) + tzOffsetMinutes * 60000;
+    const fimUtcMs =
+      Date.UTC(year, month - 1, day, 23, 59, 59, 999) +
+      tzOffsetMinutes * 60000;
 
     return {
-      gte: inicio as Date,
-      lte: fim as Date,
+      gte: new Date(inicioUtcMs),
+      lte: new Date(fimUtcMs),
     };
   }
 
-  private getTodayInputDate() {
+  private getTodayInputDate(tzOffsetMinutes = 0) {
     const now = new Date();
-    const offsetMs = now.getTimezoneOffset() * 60000;
+    const offsetMs = tzOffsetMinutes * 60000;
     return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
   }
 
@@ -393,8 +401,10 @@ export class JogosService {
     status?: StatusJogo;
     data?: string;
     periodo?: "HOJE" | "FUTURO";
+    tzOffset?: number;
   }) {
     const where: any = {};
+    const tzOffset = filters.tzOffset ?? 0;
 
     if (filters.bolaoId) {
       where.bolaoId = filters.bolaoId;
@@ -411,10 +421,10 @@ export class JogosService {
     if (filters.periodo === "FUTURO") {
       where.status = { in: [StatusJogo.PALPITES, StatusJogo.FECHADO] };
     } else if (filters.data) {
-      where.dataHora = this.buildDayRange(filters.data);
+      where.dataHora = this.buildDayRange(filters.data, tzOffset);
     } else if (filters.periodo === "HOJE") {
-      const hoje = this.getTodayInputDate();
-      where.dataHora = this.buildDayRange(hoje);
+      const hoje = this.getTodayInputDate(tzOffset);
+      where.dataHora = this.buildDayRange(hoje, tzOffset);
     }
 
     const jogos = await this.prisma.jogo.findMany({

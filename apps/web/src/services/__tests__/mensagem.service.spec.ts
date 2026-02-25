@@ -8,11 +8,11 @@ vi.mock('@/lib/api', () => {
   };
 });
 
-import { mensagemAtual } from '../mensagem.service';
+import { mensagensAtivas } from '../mensagem.service';
 
 describe('mensagem.service', () => {
-  it('chama a rota de mensagem do dia', async () => {
-    const res = await mensagemAtual();
-    expect(res.url).toBe('/api/mensagem-dia');
+  it('chama a rota de mensagens ativas', async () => {
+    const res = await mensagensAtivas();
+    expect(res.url).toBe('/api/mensagem-dia/ativas');
   });
 });

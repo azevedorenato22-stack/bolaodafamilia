@@ -59,7 +59,10 @@ function JogosContent() {
         if (!selectedBolaoId) return;
         setLoading(true);
         try {
-            const params: any = { bolaoId: selectedBolaoId };
+            const params: any = {
+                bolaoId: selectedBolaoId,
+                tzOffset: new Date().getTimezoneOffset(),
+            };
 
             if (rodadaId) params.rodadaId = rodadaId;
 

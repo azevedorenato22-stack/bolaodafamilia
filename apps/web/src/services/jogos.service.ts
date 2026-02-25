@@ -21,6 +21,7 @@ export type JogosFilters = {
   status?: string;
   data?: string;
   periodo?: 'HOJE' | 'FUTURO';
+  tzOffset?: number;
 };
 
 export async function listarJogos(filters: JogosFilters = {}) {

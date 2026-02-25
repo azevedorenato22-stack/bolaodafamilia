@@ -48,13 +48,19 @@ export class JogosController {
     @Query("status") status?: StatusJogo,
     @Query("data") data?: string,
     @Query("periodo") periodo?: "HOJE" | "FUTURO",
+    @Query("tzOffset") tzOffset?: string,
   ) {
+    const parsedTzOffset =
+      tzOffset === undefined ? undefined : Number.parseInt(tzOffset, 10);
     return this.jogosService.findAll({
       bolaoId,
       rodadaId,
       status,
       data,
       periodo,
+      tzOffset: Number.isNaN(parsedTzOffset as number)
+        ? undefined
+        : parsedTzOffset,
     });
   }
 

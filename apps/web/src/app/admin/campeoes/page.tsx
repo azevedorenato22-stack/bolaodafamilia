@@ -161,6 +161,8 @@ export default function AdminCampeoesPage() {
     if (encerrado) return <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded">PRAZO ENCERRADO</span>;
     return <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">ABERTO</span>;
   };
+  const bolaoSelecionadoAtual = boloes.find((b: any) => b.id === bolaoId);
+  const pontosPadraoBolao = bolaoSelecionadoAtual?.ptsCampeao;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-8">
@@ -278,7 +280,7 @@ export default function AdminCampeoesPage() {
                         🕒 Limite: {new Date(c.dataLimite).toLocaleString('pt-BR')}
                       </p>
                       <p className="text-xs text-slate-500 font-medium">
-                        🏆 Pontos: {c.pontuacao ?? c.bolao?.ptsCampeao} pts
+                        🏆 Pontos: {c.pontuacao ?? c.bolao?.ptsCampeao ?? pontosPadraoBolao ?? 0} pts
                       </p>
                     </div>
                     <div className="flex gap-1">

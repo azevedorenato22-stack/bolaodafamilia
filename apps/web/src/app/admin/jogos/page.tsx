@@ -92,6 +92,7 @@ export default function AdminJogosPage() {
     setErro(null);
     try {
       const params: any = {};
+      params.tzOffset = new Date().getTimezoneOffset();
       if (activeFilters.bolaoId) params.bolaoId = activeFilters.bolaoId;
       if (activeFilters.rodadaId) params.rodadaId = activeFilters.rodadaId;
       if (activeFilters.status) params.status = activeFilters.status;
@@ -282,9 +283,9 @@ export default function AdminJogosPage() {
               }}
             >
               <option value="">Todos status</option>
-              <option value="PALPITES">A realizar</option>
-              <option value="EM_ANDAMENTO">Em andamento</option>
-              <option value="ENCERRADO">Encerrados</option>
+              <option value="PALPITES">Aberto / Palpites</option>
+              <option value="FECHADO">Fechado (Aguardando jogo)</option>
+              <option value="ENCERRADO">Encerrado</option>
             </select>
             <input
               type="date"
@@ -620,12 +621,12 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
             {(jogo.mataMata || jogo.vencedorPenaltis) && (
               <div className="flex items-center gap-2">
                 {jogo.mataMata && (
-                  <span className="px-2 py-0.5 bg-purple-500 text-white rounded text-[9px] font-bold uppercase tracking-wider">
+                  <span className="px-2 py-0.5 bg-slate-400 text-white rounded text-[9px] font-bold uppercase tracking-wider">
                     Mata-Mata
                   </span>
                 )}
                 {jogo.vencedorPenaltis && (
-                  <span className="px-2 py-0.5 bg-purple-600 text-white rounded text-[9px] font-bold uppercase shadow-sm whitespace-nowrap">
+                  <span className="px-2 py-0.5 bg-slate-500 text-white rounded text-[9px] font-bold uppercase shadow-sm whitespace-nowrap">
                     Pên: {jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}
                   </span>
                 )}
@@ -655,7 +656,7 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
         <div className="flex flex-col gap-2 w-full md:w-auto">
           <div className="grid grid-cols-2 gap-2 md:flex">
             <button
-              className="text-[10px] md:text-[11px] font-black uppercase tracking-wider bg-slate-900 text-white px-3 py-2 md:py-1.5 rounded-lg shadow-sm hover:scale-105 transition-transform flex items-center justify-center"
+              className="text-[10px] md:text-[11px] font-black uppercase tracking-wider bg-[#64748B] text-white px-3 py-2 md:py-1.5 rounded-lg shadow-sm hover:bg-[#475569] transition-colors flex items-center justify-center"
               onClick={onEdit}
             >
               Editar
@@ -668,7 +669,7 @@ function AdminJogoItem({ jogo, onRefresh, onEdit, onDelete }: { jogo: any; onRef
             </button>
           </div>
           <button
-            className="w-full text-[10px] md:text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100 px-3 py-2 md:py-1.5 rounded-lg hover:bg-blue-100 transition-colors text-center"
+            className="w-full text-[10px] md:text-[11px] font-black uppercase tracking-wider bg-[#2563EB] text-white border border-[#2563EB] px-3 py-2 md:py-1.5 rounded-lg hover:bg-[#1D4ED8] hover:border-[#1D4ED8] transition-colors text-center"
             onClick={() => {
               setShowPalpites(!showPalpites);
               if (!showPalpites) loadPalpites();

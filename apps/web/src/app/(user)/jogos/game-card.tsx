@@ -127,12 +127,12 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                     {(jogo.mataMata || (jogo.vencedorPenaltis && (isEncerrado || jogo.status === 'FECHADO' || jogo.status === 'AO_VIVO'))) && (
                         <div className="flex items-center gap-2 mt-2">
                             {jogo.mataMata && (
-                                <span className="text-[9px] font-bold text-white bg-purple-500 px-2 py-1 rounded uppercase tracking-wider">
+                                <span className="text-[9px] font-bold text-white bg-slate-400 px-2 py-1 rounded uppercase tracking-wider">
                                     Mata-Mata
                                 </span>
                             )}
                             {jogo.mataMata && jogo.vencedorPenaltis && (isEncerrado || jogo.status === 'FECHADO' || jogo.status === 'AO_VIVO') && (
-                                <span className="text-[10px] font-black text-white bg-purple-600 px-2 py-1 rounded-lg uppercase shadow-sm whitespace-nowrap">
+                                <span className="text-[10px] font-black text-white bg-slate-500 px-2 py-1 rounded-lg uppercase shadow-sm whitespace-nowrap">
                                     Pên: {jogo.vencedorPenaltis === 'CASA' ? 'Casa' : 'Fora'}
                                 </span>
                             )}
@@ -152,14 +152,14 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                                         {palpiteExistente.golsCasa} <span className="text-slate-300 text-sm">x</span> {palpiteExistente.golsFora}
                                     </div>
                                     {palpiteExistente.vencedorPenaltis && (
-                                        <span className="text-[10px] font-bold text-white bg-purple-600 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                        <span className="text-[10px] font-bold text-white bg-slate-500 px-1.5 py-0.5 rounded uppercase tracking-wider">
                                             PÊN: {palpiteExistente.vencedorPenaltis === 'CASA' ? 'CASA' : 'FORA'}
                                         </span>
                                     )}
                                 </div>
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                                    className="text-xs font-bold text-white bg-[#64748B] hover:bg-[#475569] px-2 py-1 rounded transition-colors"
                                 >
                                     EDITAR
                                 </button>
@@ -201,7 +201,7 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                                 {needsPenaltis && (
                                     <div className="mb-4 animate-fade-in">
                                         <div className="text-center mb-2">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-2 py-1 rounded-md">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2 py-1 rounded-md">
                                                 Quem vence/classifica?
                                             </span>
                                         </div>
@@ -209,8 +209,8 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                                             <button
                                                 onClick={() => setVencedorPenaltis('CASA')}
                                                 className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg border transition-all ${vencedorPenaltis === 'CASA'
-                                                    ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20'
-                                                    : 'bg-white text-slate-600 border-slate-200 hover:border-purple-300 hover:bg-purple-50'
+                                                    ? 'bg-slate-500 text-white border-slate-500 shadow-md shadow-slate-500/20'
+                                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                                     }`}
                                             >
                                                 {jogo.timeCasa.nome}
@@ -218,8 +218,8 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                                             <button
                                                 onClick={() => setVencedorPenaltis('FORA')}
                                                 className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg border transition-all ${vencedorPenaltis === 'FORA'
-                                                    ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20'
-                                                    : 'bg-white text-slate-600 border-slate-200 hover:border-purple-300 hover:bg-purple-50'
+                                                    ? 'bg-slate-500 text-white border-slate-500 shadow-md shadow-slate-500/20'
+                                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                                     }`}
                                             >
                                                 {jogo.timeFora.nome}
@@ -261,7 +261,7 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                                 if (!showPalpites) carregarPalpitesOutros();
                                 setShowPalpites(!showPalpites);
                             }}
-                            className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors border border-slate-100"
+                            className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-lg transition-colors border border-[#2563EB]"
                         >
                             {showPalpites ? 'Ocultar Palpites' : 'Ver Palpites e Resultados'}
                             <span className="text-[10px] transform transition-transform duration-300" style={{ transform: showPalpites ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
@@ -276,7 +276,7 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                                         {/* Label removida conforme solicitado */}
                                         <div className="font-mono font-bold text-slate-800 text-lg">
                                             {palpiteExistente ? `${palpiteExistente.golsCasa} x ${palpiteExistente.golsFora}` : <span className="text-slate-300">Não palpitou</span>}
-                                            {palpiteExistente?.vencedorPenaltis && <span className="text-xs text-purple-600 ml-2 font-bold uppercase">(Pên: {palpiteExistente.vencedorPenaltis})</span>}
+                                            {palpiteExistente?.vencedorPenaltis && <span className="text-xs text-slate-600 ml-2 font-bold uppercase">(Pên: {palpiteExistente.vencedorPenaltis})</span>}
                                         </div>
                                     </div>
 
@@ -317,7 +317,7 @@ export function GameCard({ jogo, onPalpiteSalvo }: GameCardProps) {
                                                                 {p.golsCasa} <span className="text-slate-300 text-xs">x</span> {p.golsFora}
                                                             </span>
                                                             {p.vencedorPenaltis && (
-                                                                <span className="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded uppercase border border-purple-100">
+                                                                <span className="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded uppercase border border-slate-200">
                                                                     PÊN: {p.vencedorPenaltis === 'CASA' ? 'C' : 'F'}
                                                                 </span>
                                                             )}

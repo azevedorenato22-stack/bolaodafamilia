@@ -31,6 +31,9 @@ export default function CampeoesPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const sortTimesByNome = (items: any[]) =>
+    [...items].sort((a: any, b: any) => (a?.nome ?? '').localeCompare(b?.nome ?? '', 'pt-BR'));
+
   const load = async (bolao: string, selectedBolao?: any) => {
     setLoading(true);
     setErro(null);
@@ -54,7 +57,7 @@ export default function CampeoesPage() {
         selectedBolao?.times ??
         boloesch.find(b => b.id === bolao)?.times ??
         [];
-      setTimes(bolaoTimes.map((bt: any) => bt.time ?? bt));
+      setTimes(sortTimesByNome(bolaoTimes.map((bt: any) => bt.time ?? bt)));
     } catch {
       setErro('Falha ao carregar campeões.');
     } finally {
@@ -70,7 +73,7 @@ export default function CampeoesPage() {
         if (lista[0]) {
           setBolaoId(lista[0].id);
           const bolaoTimes = lista[0].times ?? [];
-          setTimes(bolaoTimes.map((bt: any) => bt.time ?? bt));
+          setTimes(sortTimesByNome(bolaoTimes.map((bt: any) => bt.time ?? bt)));
           load(lista[0].id, lista[0]);
         } else {
           setBolaoId('');
@@ -118,7 +121,7 @@ export default function CampeoesPage() {
                 const id = e.target.value;
                 setBolaoId(id);
                 const selected = boloesch.find(b => b.id === id);
-                setTimes((selected?.times ?? []).map((bt: any) => bt.time ?? bt));
+                setTimes(sortTimesByNome((selected?.times ?? []).map((bt: any) => bt.time ?? bt)));
                 await load(id, selected);
               }}
             >
