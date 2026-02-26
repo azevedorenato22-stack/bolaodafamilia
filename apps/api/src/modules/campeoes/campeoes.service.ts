@@ -188,6 +188,11 @@ export class CampeoesService {
       dto,
       "resultadoFinalId",
     );
+    const now = new Date();
+    const movingDeadlineToFuture =
+      dto.dataLimite !== undefined && (dataLimite as Date) > now;
+    const shouldReopenByFutureDate =
+      movingDeadlineToFuture && !hasResultado && !!campeao.resultadoFinalId;
 
     if (hasResultado && dto.resultadoFinalId) {
       await this.ensureTimeBelongsToBolao(dto.resultadoFinalId, bolaoId);
@@ -207,6 +212,9 @@ export class CampeoesService {
             ? new Date()
             : campeao.definidoEm;
       }
+    } else if (shouldReopenByFutureDate) {
+      resultadoFinalId = null;
+      definidoEm = null;
     }
 
     const updated = await this.prisma.campeao.update({
@@ -222,7 +230,7 @@ export class CampeoesService {
       },
     });
 
-    if (hasResultado) {
+    if (hasResultado || shouldReopenByFutureDate) {
       if (resultadoFinalId) {
         await this.recalcPontuacaoCampeao(id);
       } else {
