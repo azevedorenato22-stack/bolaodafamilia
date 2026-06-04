@@ -117,10 +117,10 @@ export default function RankingPage() {
               value={filtros.status}
               onChange={e => setFiltros({ ...filtros, status: e.target.value })}
             >
-              <option value="">Encerrados (padrão)</option>
-              <option value="PALPITES">Palpites</option>
-              <option value="EM_ANDAMENTO">Em andamento</option>
-              <option value="ENCERRADO">Encerrados</option>
+              <option value="">Encerrado (padrão)</option>
+              <option value="PALPITES">Aberto</option>
+              <option value="FECHADO">Fechando</option>
+              <option value="ENCERRADO">Encerrado</option>
             </select>
             <input
               type="date"

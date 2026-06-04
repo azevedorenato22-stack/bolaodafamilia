@@ -97,8 +97,7 @@ export class PalpitesService {
 
     const now = new Date();
     const diffMinutes = (jogo.dataHora.getTime() - now.getTime()) / 60000;
-    const inCriticalWindow =
-      diffMinutes < this.BLOQUEIO_MINUTOS && diffMinutes > -240;
+    const inCriticalWindow = diffMinutes < this.BLOQUEIO_MINUTOS;
 
     if (inCriticalWindow) {
       throw new BadRequestException(
@@ -218,15 +217,20 @@ export class PalpitesService {
   async findByJogo(jogoId: string, user: any) {
     const jogo = await this.prisma.jogo.findUnique({
       where: { id: jogoId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, dataHora: true },
     });
 
     if (!jogo) {
       throw new NotFoundException("Jogo não encontrado");
     }
 
+    let revelado = jogo.status !== StatusJogo.PALPITES;
+    if (!revelado) {
+       const diffMinutes = (jogo.dataHora.getTime() - new Date().getTime()) / 60000;
+       if (diffMinutes < this.BLOQUEIO_MINUTOS) revelado = true;
+    }
+
     const isAdmin = user?.tipo === TipoUsuario.ADMIN;
-    const revelado = jogo.status !== StatusJogo.PALPITES;
 
     const where =
       revelado || isAdmin ? { jogoId } : { jogoId, usuarioId: user.id };

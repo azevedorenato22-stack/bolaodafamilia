@@ -23,6 +23,7 @@ export default function AdminCampeoesPage() {
   const [form, setForm] = useState({
     nome: '',
     dataLimite: '',
+    pontuacao: '' as number | '',
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -95,15 +96,17 @@ export default function AdminCampeoesPage() {
         await atualizarCampeao(editingId, {
           nome: form.nome,
           dataLimite: toIsoFromLocalInput(form.dataLimite),
+          pontuacao: form.pontuacao === '' ? null : Number(form.pontuacao),
         });
       } else {
         await criarCampeao({
           bolaoId,
           nome: form.nome,
           dataLimite: toIsoFromLocalInput(form.dataLimite),
+          pontuacao: form.pontuacao === '' ? null : Number(form.pontuacao),
         });
       }
-      setForm({ nome: '', dataLimite: '' });
+      setForm({ nome: '', dataLimite: '', pontuacao: '' });
       setEditingId(null);
       await load(bolaoId);
       setSucesso(editingId ? 'Campeão atualizado com sucesso.' : 'Campeão criado com sucesso.');
@@ -234,6 +237,16 @@ export default function AdminCampeoesPage() {
                     required
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pontuação (Opcional)</label>
+                  <input
+                    type="number"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                    placeholder="Padrão do bolão"
+                    value={form.pontuacao}
+                    onChange={e => setForm({ ...form, pontuacao: e.target.value ? Number(e.target.value) : '' })}
+                  />
+                </div>
 
                 <div className="pt-2 flex flex-col gap-2">
                   <button
@@ -248,7 +261,7 @@ export default function AdminCampeoesPage() {
                       className="w-full bg-white text-slate-600 border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-bold hover:bg-slate-50 transition-colors"
                       onClick={() => {
                         setEditingId(null);
-                        setForm({ nome: '', dataLimite: '' });
+                        setForm({ nome: '', dataLimite: '', pontuacao: '' });
                       }}
                     >
                       Cancelar Edição
@@ -290,6 +303,7 @@ export default function AdminCampeoesPage() {
                           setForm({
                             nome: c.nome,
                             dataLimite: formatDateTimeLocal(c.dataLimite),
+                            pontuacao: c.pontuacao ?? '',
                           });
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
@@ -298,13 +312,15 @@ export default function AdminCampeoesPage() {
                       >
                         ✏️
                       </button>
-                      <button
-                        onClick={() => setConfirmId(c.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        🗑️
-                      </button>
+                      {(!palpites[c.id] || palpites[c.id].length === 0) && (
+                        <button
+                          onClick={() => setConfirmId(c.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Excluir"
+                        >
+                          🗑️
+                        </button>
+                      )}
                     </div>
                   </div>
 

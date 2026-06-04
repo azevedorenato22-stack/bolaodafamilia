@@ -29,8 +29,7 @@ export class MensagemDiaService {
     // Normalizar tipo para maiúsculo
     const tipo = dto.tipo?.toUpperCase() || "GERAL";
 
-    // Se for do tipo PATO, LIDER ou DESTAQUE, talvez queiramos desativar anteriores do mesmo tipo?
-    if (["PATO", "LIDER", "DESTAQUE"].includes(tipo)) {
+    if (dto.ativo !== false) {
       await this.prisma.mensagemDia.updateMany({
         where: { tipo, ativo: true },
         data: { ativo: false },
@@ -83,6 +82,14 @@ export class MensagemDiaService {
   }
 
   async update(id: string, dto: CreateMensagemDiaDto) {
+    const tipo = dto.tipo?.toUpperCase() || "GERAL";
+    if (dto.ativo) {
+      await this.prisma.mensagemDia.updateMany({
+        where: { tipo, id: { not: id }, ativo: true },
+        data: { ativo: false },
+      });
+    }
+
     return this.prisma.mensagemDia.update({
       where: { id },
       data: {

@@ -354,8 +354,8 @@ export class JogosService {
       dataHora: parsedDate!,
     });
 
-    // Regra de consistência: só persiste placar/pênaltis se o jogo estiver ENCERRADO.
-    const shouldPersistResultado = targetStatus === StatusJogo.ENCERRADO;
+    // Regra de consistência: só persiste placar/pênaltis se o jogo não estiver em PALPITES.
+    const shouldPersistResultado = targetStatus === StatusJogo.ENCERRADO || targetStatus === StatusJogo.FECHADO;
     const resultadoCasaFinal = shouldPersistResultado ? resultadoCasa : null;
     const resultadoForaFinal = shouldPersistResultado ? resultadoFora : null;
     const empatePersistido =
@@ -479,8 +479,8 @@ export class JogosService {
         ? updateJogoDto.vencedorPenaltis
         : existing.vencedorPenaltis;
 
-    // Regra de consistência: jogo fora de ENCERRADO não pode ter placar/pênaltis persistidos.
-    const shouldPersistResultado = nextStatus === StatusJogo.ENCERRADO;
+    // Regra de consistência: jogo em PALPITES não pode ter placar/pênaltis persistidos.
+    const shouldPersistResultado = nextStatus === StatusJogo.ENCERRADO || nextStatus === StatusJogo.FECHADO;
     const resultadoCasaFinal = shouldPersistResultado
       ? resultadoCasaCandidate
       : null;
@@ -579,9 +579,9 @@ export class JogosService {
 
     const updated = await this.prisma.jogo.update({
       where: { id },
-      // Regra de consistência: se não estiver encerrado, não deve manter placar/pênaltis.
+      // Regra de consistência: se estiver em PALPITES, não deve manter placar/pênaltis.
       data:
-        status === StatusJogo.ENCERRADO
+        status === StatusJogo.ENCERRADO || status === StatusJogo.FECHADO
           ? { status }
           : {
             status,
@@ -622,13 +622,15 @@ export class JogosService {
   }
 
   async listarPalpitesDoJogo(id: string, user: any) {
-    const jogo = await this.prisma.jogo.findUnique({
+    let jogo: any = await this.prisma.jogo.findUnique({
       where: { id },
     });
 
     if (!jogo) {
       throw new NotFoundException("Jogo não encontrado");
     }
+
+    jogo = this.mapJogo(jogo);
 
     const isAdmin = user?.tipo === "ADMIN";
 

@@ -51,8 +51,10 @@ export class RankingService {
     ) {
       return null;
     }
-    const start = new Date(year, month - 1, day, 0, 0, 0, 0);
-    const end = new Date(year, month - 1, day, 23, 59, 59, 999);
+    const startStr = `${data}T00:00:00.000-03:00`;
+    const endStr = `${data}T23:59:59.999-03:00`;
+    const start = new Date(startStr);
+    const end = new Date(endStr);
     return { start, end };
   }
 

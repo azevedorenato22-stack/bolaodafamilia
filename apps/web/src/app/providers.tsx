@@ -101,40 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  // Inatividade: exibir popup da mensagem ao retornar, mas manter sessão
-  // Inatividade: leva para home e exibe popup de mensagem ao retornar, inclusive na landing/login
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    const resetIdle = () => {
-      if (idle && mensagem) {
-        setShowMensagemPopup(true);
-      }
-      setIdle(false);
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        setIdle(true);
-        if (pathname !== '/') {
-          router.push('/');
-        }
-      }, 5 * 60 * 1000); // 5 minutos
-    };
-
-    if (typeof window !== 'undefined') {
-      ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
-        window.addEventListener(evt, resetIdle),
-      );
-      resetIdle();
-    }
-
-    return () => {
-      clearTimeout(timeout);
-      if (typeof window !== 'undefined') {
-        ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
-          window.removeEventListener(evt, resetIdle),
-        );
-      }
-    };
-  }, [idle, mensagem, pathname, router]);
+  // Inatividade removida a pedido do usuário
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

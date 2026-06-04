@@ -13,9 +13,11 @@ export default function AdminTimesPage() {
   const [form, setForm] = useState<{
     nome: string;
     categorias: string[];
+    escudoUrl: string;
   }>({
     nome: '',
     categorias: [],
+    escudoUrl: '',
   });
 
   const [novaCategoria, setNovaCategoria] = useState('');
@@ -52,7 +54,8 @@ export default function AdminTimesPage() {
     try {
       const payload = {
         nome: form.nome,
-        categorias: form.categorias
+        categorias: form.categorias,
+        escudoUrl: form.escudoUrl || null
       };
 
       if (editingId) {
@@ -62,7 +65,7 @@ export default function AdminTimesPage() {
       }
       setSucesso(isEditing ? 'Time atualizado com sucesso.' : 'Time criado com sucesso.');
       setEditingId(null);
-      setForm({ nome: '', categorias: [] });
+      setForm({ nome: '', categorias: [], escudoUrl: '' });
       setNovaCategoria('');
 
       // Recarregar dados
@@ -120,7 +123,7 @@ export default function AdminTimesPage() {
       <form onSubmit={submit} className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white">
         <div className="grid md:grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-medium">Nome</label>
+            <label className="text-sm font-medium block">Nome</label>
             <input
               className="w-full border rounded-lg px-3 py-2 text-sm"
               value={form.nome}
@@ -129,6 +132,15 @@ export default function AdminTimesPage() {
             />
           </div>
           <div>
+            <label className="text-sm font-medium mb-1 block">URL do Escudo / Bandeira / Emoji</label>
+            <input
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+              placeholder="https://link... ou Emoji 🇧🇷"
+              value={form.escudoUrl}
+              onChange={e => setForm({ ...form, escudoUrl: e.target.value })}
+            />
+          </div>
+          <div className="md:col-span-2">
             <label className="text-sm font-medium mb-1 block">Categorias</label>
             <div className="border rounded-lg p-3 max-h-40 overflow-y-auto bg-slate-50 space-y-2">
               {todasCategorias.map(cat => (
@@ -204,7 +216,7 @@ export default function AdminTimesPage() {
             className="text-sm text-gray-600 underline ml-2 disabled:opacity-50"
             onClick={() => {
               setEditingId(null);
-              setForm({ nome: '', categorias: [] });
+              setForm({ nome: '', categorias: [], escudoUrl: '' });
               setNovaCategoria('');
             }}
             disabled={isSaving}
@@ -237,9 +249,12 @@ export default function AdminTimesPage() {
         <div className="divide-y divide-gray-100">
           {timesFiltrados.map(t => (
             <div key={t.id} className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{t.nome}</p>
-                <p className="text-sm text-gray-600">{t.categoria}</p>
+              <div className="flex items-center gap-3">
+                {t.escudoUrl && (t.escudoUrl.startsWith('http') ? <img src={t.escudoUrl} className="w-6 h-6 object-contain" alt="" /> : <span className="text-xl">{t.escudoUrl}</span>)}
+                <div>
+                  <p className="font-semibold">{t.nome}</p>
+                  <p className="text-sm text-gray-600">{t.categoria}</p>
+                </div>
               </div>
               <div className="flex items-center">
                 <button
@@ -249,6 +264,7 @@ export default function AdminTimesPage() {
                     setForm({
                       nome: t.nome,
                       categorias: t.categoria ? t.categoria.split(',').map((s: string) => s.trim()) : [],
+                      escudoUrl: t.escudoUrl || '',
                     });
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
