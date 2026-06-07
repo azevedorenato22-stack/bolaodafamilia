@@ -68,19 +68,8 @@ export class MensagemDiaService {
    * Busca todas as mensagens ativas para exibição pública (Pato, Líder, Destaque, Geral)
    */
   async findAllActive() {
-    const now = new Date();
     return this.prisma.mensagemDia.findMany({
-      where: {
-        ativo: true,
-        AND: [
-          {
-            OR: [{ dataInicio: null }, { dataInicio: { lte: now } }],
-          },
-          {
-            OR: [{ dataFim: null }, { dataFim: { gte: now } }],
-          },
-        ],
-      },
+      where: { ativo: true },
       orderBy: { createdAt: "desc" },
     });
   }
