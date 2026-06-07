@@ -248,15 +248,8 @@ export class CampeoesService {
 
     const campeao = await this.prisma.campeao.findUnique({
       where: { id },
-      include: { _count: { select: { palpites: true } } },
     });
     if (!campeao) throw new NotFoundException("Campeão não encontrado");
-
-    if (campeao._count.palpites > 0) {
-      throw new BadRequestException(
-        "Não é possível remover, há palpites cadastrados",
-      );
-    }
 
     await this.prisma.campeao.delete({ where: { id } });
     return { message: "Campeão removido com sucesso" };

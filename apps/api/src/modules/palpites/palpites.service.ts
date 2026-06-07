@@ -97,7 +97,7 @@ export class PalpitesService {
 
     const now = new Date();
     const diffMinutes = (jogo.dataHora.getTime() - now.getTime()) / 60000;
-    const inCriticalWindow = diffMinutes < this.BLOQUEIO_MINUTOS;
+    const inCriticalWindow = diffMinutes < this.BLOQUEIO_MINUTOS && diffMinutes > -240;
 
     if (inCriticalWindow) {
       throw new BadRequestException(

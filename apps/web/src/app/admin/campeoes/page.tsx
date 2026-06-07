@@ -312,15 +312,13 @@ export default function AdminCampeoesPage() {
                       >
                         ✏️
                       </button>
-                      {(!palpites[c.id] || palpites[c.id].length === 0) && (
-                        <button
-                          onClick={() => setConfirmId(c.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Excluir"
-                        >
-                          🗑️
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setConfirmId(c.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
 
@@ -408,7 +406,11 @@ export default function AdminCampeoesPage() {
       {confirmId && (
         <ConfirmModal
           title="Confirmar exclusão"
-          description="Esta ação removerá o campeão. Digite sua senha para confirmar."
+          description={
+            palpites[confirmId]?.length
+              ? `Esta ação removerá o campeão e ${palpites[confirmId].length} palpite(s) de usuários. Digite sua senha para confirmar.`
+              : 'Esta ação removerá o campeão. Digite sua senha para confirmar.'
+          }
           onCancel={() => setConfirmId(null)}
           onConfirm={async senha => {
             setConfirmId(null);

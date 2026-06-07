@@ -17,9 +17,8 @@ export class JogosService {
   constructor(private prisma: PrismaService) { }
 
   private readonly allowedTransitions: Record<StatusJogo, StatusJogo[]> = {
-    // Permite encerrar direto sem passar por FECHADO (ex.: placar já conhecido).
     [StatusJogo.PALPITES]: [StatusJogo.FECHADO, StatusJogo.ENCERRADO],
-    [StatusJogo.FECHADO]: [StatusJogo.ENCERRADO],
+    [StatusJogo.FECHADO]: [StatusJogo.PALPITES, StatusJogo.ENCERRADO],
     [StatusJogo.ENCERRADO]: [StatusJogo.PALPITES, StatusJogo.FECHADO],
   };
 
@@ -460,11 +459,26 @@ export class JogosService {
     await this.ensureBolaoAndRodada(bolaoId, rodadaId);
     await this.ensureTimesBelongToBolao(bolaoId, timeCasaId, timeForaId);
 
-    const nextStatus = updateJogoDto.status ?? existing.status;
+    let nextStatus = updateJogoDto.status ?? existing.status;
     this.ensureValidTransition(existing.status, nextStatus);
+
+    const parsedDate = this.parseDate(
+      updateJogoDto.dataHora ?? existing.dataHora,
+    );
+
+    // Reabre palpites automaticamente quando um jogo FECHADO tem seu horário movido para o futuro
+    if (
+      existing.status === StatusJogo.FECHADO &&
+      nextStatus === StatusJogo.FECHADO &&
+      updateJogoDto.dataHora !== undefined &&
+      parsedDate! > new Date()
+    ) {
+      nextStatus = StatusJogo.PALPITES;
+    }
+
     const reabrindo =
-      existing.status === StatusJogo.ENCERRADO &&
-      nextStatus !== StatusJogo.ENCERRADO;
+      (existing.status === StatusJogo.ENCERRADO &&
+        nextStatus !== StatusJogo.ENCERRADO);
 
     const resultadoCasaCandidate =
       updateJogoDto.resultadoCasa !== undefined
@@ -479,7 +493,6 @@ export class JogosService {
         ? updateJogoDto.vencedorPenaltis
         : existing.vencedorPenaltis;
 
-    // Regra de consistência: jogo em PALPITES não pode ter placar/pênaltis persistidos.
     const shouldPersistResultado = nextStatus === StatusJogo.ENCERRADO || nextStatus === StatusJogo.FECHADO;
     const resultadoCasaFinal = shouldPersistResultado
       ? resultadoCasaCandidate
@@ -503,10 +516,6 @@ export class JogosService {
       vencedorPenaltis: vencedorPenaltisFinal,
       mataMata: mataMataFlag,
     });
-
-    const parsedDate = this.parseDate(
-      updateJogoDto.dataHora ?? existing.dataHora,
-    );
 
     const identityChanged =
       bolaoId !== existing.bolaoId ||

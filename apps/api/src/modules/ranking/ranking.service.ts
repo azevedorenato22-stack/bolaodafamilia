@@ -263,7 +263,7 @@ export class RankingService {
         jogo: {
           bolaoId,
           ...(filters?.rodadaId ? { rodadaId: filters.rodadaId } : {}),
-          ...(filters?.status ? { status: filters.status as any } : {}),
+          status: filters?.status ? (filters.status as any) : { in: ["FECHADO", "ENCERRADO"] },
           ...(dateFilter as any),
         }
       },

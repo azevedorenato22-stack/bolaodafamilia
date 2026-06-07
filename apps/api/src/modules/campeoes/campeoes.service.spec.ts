@@ -1,3 +1,4 @@
+import { UnauthorizedException } from "@nestjs/common";
 import { CampeoesService } from "./campeoes.service";
 
 const now = new Date("2026-02-26T12:00:00.000Z");
@@ -26,6 +27,7 @@ function createMockPrisma(overrides: any = {}) {
         id: "c1",
         ...data,
       })),
+      delete: jest.fn().mockResolvedValue({ id: "c1" }),
       ...overrides.campeao,
     },
     bolaoTime: {
@@ -36,6 +38,7 @@ function createMockPrisma(overrides: any = {}) {
       updateMany: jest.fn().mockResolvedValue({ count: 3 }),
       ...overrides.palpiteCampeao,
     },
+    $transaction: jest.fn().mockImplementation(async (fn: any) => fn()),
   } as any;
 }
 
@@ -73,5 +76,35 @@ describe("CampeoesService - reabertura por data", () => {
       }),
     );
     expect(updated.resultadoFinalId).toBeNull();
+  });
+});
+
+describe("CampeoesService - remocao", () => {
+  it("rejeita remocao sem senha de confirmacao", async () => {
+    const prisma = createMockPrisma();
+    const service = new CampeoesService(prisma);
+
+    await expect(
+      service.remove("c1"),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it("permite remover campeao com resultadoFinalId definido via cascade do Prisma", async () => {
+    const deleteSpy = jest.fn().mockResolvedValue({ id: "c1" });
+    const prisma = createMockPrisma({
+      campeao: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          resultadoFinalId: "t1",
+        }),
+        delete: deleteSpy,
+      },
+    });
+    const service = new CampeoesService(prisma);
+
+    const result = await service.remove("c1", "senha123");
+
+    expect(deleteSpy).toHaveBeenCalledWith({ where: { id: "c1" } });
+    expect(result).toEqual({ message: "Campeão removido com sucesso" });
   });
 });
