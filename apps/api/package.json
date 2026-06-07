@@ -5,7 +5,7 @@
   "description": "Backend NestJS do Bolão do Chuveiro Ligado",
   "scripts": {
     "build": "nest build",
-    "vercel-build": "npx prisma migrate deploy --schema=../../packages/database/prisma/schema.prisma && nest build",
+    "vercel-build": "nest build",
     "dev": "nest start --watch",
     "start": "nest start",
     "start:dev": "nest start --watch",
