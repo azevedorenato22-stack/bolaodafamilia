@@ -74,6 +74,13 @@ export class TimesController {
     return this.timesService.getCategorias();
   }
 
+  @Post("categorias")
+  @Roles(TipoUsuario.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  createCategoria(@Body("nome") nome: string) {
+    return this.timesService.createCategoria(nome);
+  }
+
   /**
    * Buscar times por termo (PÚBLICO)
    * @query termo - Termo de busca (nome, sigla ou categoria)

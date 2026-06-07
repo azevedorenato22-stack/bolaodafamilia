@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useProtectedPage } from '../../providers';
-import { criarTime, excluirTime, listarTimes, atualizarTime, listarCategorias, excluirCategoria } from '../../../services/times.service';
+import { criarTime, excluirTime, listarTimes, atualizarTime, listarCategorias, excluirCategoria, criarCategoria } from '../../../services/times.service';
 import { ConfirmModal } from '../../../components/confirm-modal';
 
 export default function AdminTimesPage() {
@@ -183,9 +183,15 @@ export default function AdminTimesPage() {
               <button
                 type="button"
                 className="bg-slate-200 hover:bg-slate-300 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700"
-                onClick={() => {
+                onClick={async () => {
                   const val = novaCategoria.trim();
                   if (val && !todasCategorias.includes(val)) {
+                    try {
+                      await criarCategoria(val);
+                    } catch {
+                      setErro('Erro ao criar categoria.');
+                      return;
+                    }
                     setTodasCategorias(prev => [...prev, val].sort());
                     setForm(prev => ({ ...prev, categorias: [...(prev.categorias || []), val] }));
                     setNovaCategoria('');

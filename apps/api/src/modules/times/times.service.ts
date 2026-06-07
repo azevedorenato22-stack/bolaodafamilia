@@ -180,6 +180,21 @@ export class TimesService {
     return categorias.map(c => c.nome);
   }
 
+  async createCategoria(nome: string) {
+    const cleanNome = nome?.trim();
+    if (!cleanNome) {
+      throw new BadRequestException("Nome da categoria é obrigatório");
+    }
+
+    await this.prisma.categoria.upsert({
+      where: { nome: cleanNome },
+      update: {},
+      create: { nome: cleanNome },
+    });
+
+    return { message: `Categoria "${cleanNome}" salva com sucesso` };
+  }
+
   async update(id: string, updateTimeDto: UpdateTimeDto) {
     const time = await this.prisma.time.findUnique({
       where: { id },

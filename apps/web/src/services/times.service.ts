@@ -25,6 +25,11 @@ export async function listarCategorias() {
   return data;
 }
 
+export async function criarCategoria(nome: string) {
+  const { data } = await api.post('/api/times/categorias', { nome });
+  return data;
+}
+
 export async function excluirCategoria(nome: string) {
   const { data } = await api.delete(`/api/times/categorias/${encodeURIComponent(nome)}`);
   return data;
