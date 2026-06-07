@@ -13,8 +13,9 @@ export class CreateMensagemDiaDto {
   @MaxLength(255)
   titulo?: string;
 
+  @IsOptional()
   @IsString()
-  conteudo: string;
+  conteudo?: string;
 
   @IsOptional()
   @IsString()

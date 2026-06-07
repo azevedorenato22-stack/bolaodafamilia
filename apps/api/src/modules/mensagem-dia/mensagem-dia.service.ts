@@ -26,6 +26,10 @@ export class MensagemDiaService {
       throw new BadRequestException("dataFim deve ser posterior a dataInicio");
     }
 
+    if (!dto.conteudo || !dto.conteudo.trim()) {
+      throw new BadRequestException("Conteúdo é obrigatório");
+    }
+
     // Normalizar tipo para maiúsculo
     const tipo = dto.tipo?.toUpperCase() || "GERAL";
 
