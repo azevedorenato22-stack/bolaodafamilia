@@ -86,12 +86,18 @@ export class MensagemDiaService {
   }
 
   async update(id: string, dto: CreateMensagemDiaDto) {
-    const tipo = dto.tipo?.toUpperCase() || "GERAL";
+    const newTipo = dto.tipo?.toUpperCase();
     if (dto.ativo) {
-      await this.prisma.mensagemDia.updateMany({
-        where: { tipo, id: { not: id }, ativo: true },
-        data: { ativo: false },
-      });
+      const tipo = newTipo || (await this.prisma.mensagemDia.findUnique({
+        where: { id },
+        select: { tipo: true },
+      }))?.tipo;
+      if (tipo) {
+        await this.prisma.mensagemDia.updateMany({
+          where: { tipo, id: { not: id }, ativo: true },
+          data: { ativo: false },
+        });
+      }
     }
 
     return this.prisma.mensagemDia.update({
