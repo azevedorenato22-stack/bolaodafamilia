@@ -43,6 +43,10 @@ export class JogosService {
       // Isso permite que o Admin reabra jogos muito antigos ou futuros distantes sem ser barrado.
       if (diffMinutes < 15 && diffMinutes > -240) {
         status = StatusJogo.FECHADO;
+        // Persiste no banco para evitar inconsistência com filtros
+        this.prisma.jogo
+          .update({ where: { id: jogo.id }, data: { status: StatusJogo.FECHADO } })
+          .catch(() => {});
       }
     }
 
