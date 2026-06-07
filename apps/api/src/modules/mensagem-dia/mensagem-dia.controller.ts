@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Param,
   UseGuards,
@@ -42,6 +43,13 @@ export class MensagemDiaController {
   @Roles(TipoUsuario.ADMIN)
   findAll() {
     return this.mensagemDiaService.findAll();
+  }
+
+  @Patch(":id")
+  @Roles(TipoUsuario.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  update(@Param("id") id: string, @Body() dto: CreateMensagemDiaDto) {
+    return this.mensagemDiaService.update(id, dto);
   }
 
   @Delete(":id")

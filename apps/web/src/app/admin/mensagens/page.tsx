@@ -6,6 +6,7 @@ import {
     listarMensagens,
     salvarMensagem,
     removerMensagem,
+    atualizarMensagem,
 } from '@/services/mensagem.service';
 
 export default function AdminMensagensPage() {
@@ -61,6 +62,15 @@ export default function AdminMensagensPage() {
             await carregar();
         } catch (err) {
             alert('Falha ao excluir.');
+        }
+    };
+
+    const handleToggleAtivo = async (id: string, ativo: boolean) => {
+        try {
+            await atualizarMensagem(id, { ativo: !ativo });
+            await carregar();
+        } catch (err) {
+            alert('Falha ao alterar status.');
         }
     };
 
@@ -180,9 +190,15 @@ export default function AdminMensagensPage() {
                                         <h3 className="font-semibold text-gray-900">{msg.titulo || 'Sem título'}</h3>
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tipo: {msg.tipo}</span>
                                     </div>
-                                    <span className={`text-xs px-2 py-1 rounded-full ${msg.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                                    <button
+                                        onClick={() => handleToggleAtivo(msg.id, msg.ativo)}
+                                        className={`text-xs px-2 py-1 rounded-full font-bold transition-colors ${msg.ativo
+                                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                    >
                                         {msg.ativo ? 'Ativo' : 'Inativo'}
-                                    </span>
+                                    </button>
                                 </div>
                                 <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{msg.conteudo}</p>
                                 <div className="mt-3 flex justify-between items-center text-xs text-gray-500">

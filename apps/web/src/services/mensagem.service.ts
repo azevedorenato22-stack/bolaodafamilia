@@ -26,3 +26,15 @@ export async function removerMensagem(id: string) {
   const { data } = await api.delete(`/api/mensagem-dia/${id}`);
   return data;
 }
+
+export async function atualizarMensagem(id: string, payload: {
+  ativo?: boolean;
+  titulo?: string;
+  conteudo?: string;
+  tipo?: string;
+  dataInicio?: string;
+  dataFim?: string;
+}) {
+  const { data } = await api.patch(`/api/mensagem-dia/${id}`, payload);
+  return data;
+}
