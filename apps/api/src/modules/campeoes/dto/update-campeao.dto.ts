@@ -36,4 +36,9 @@ export class UpdateCampeaoDto {
   @IsOptional()
   @IsUUID()
   resultadoFinalId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  categoria?: string;
 }

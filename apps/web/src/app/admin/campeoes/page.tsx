@@ -24,6 +24,7 @@ export default function AdminCampeoesPage() {
     nome: '',
     dataLimite: '',
     pontuacao: '' as number | '',
+    categoria: 'TIME',
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -97,6 +98,7 @@ export default function AdminCampeoesPage() {
           nome: form.nome,
           dataLimite: toIsoFromLocalInput(form.dataLimite),
           pontuacao: form.pontuacao === '' ? null : Number(form.pontuacao),
+          categoria: form.categoria,
         });
       } else {
         await criarCampeao({
@@ -104,9 +106,10 @@ export default function AdminCampeoesPage() {
           nome: form.nome,
           dataLimite: toIsoFromLocalInput(form.dataLimite),
           pontuacao: form.pontuacao === '' ? null : Number(form.pontuacao),
+          categoria: form.categoria,
         });
       }
-      setForm({ nome: '', dataLimite: '', pontuacao: '' });
+      setForm({ nome: '', dataLimite: '', pontuacao: '', categoria: 'TIME' });
       setEditingId(null);
       await load(bolaoId);
       setSucesso(editingId ? 'Campeão atualizado com sucesso.' : 'Campeão criado com sucesso.');
@@ -247,6 +250,17 @@ export default function AdminCampeoesPage() {
                     onChange={e => setForm({ ...form, pontuacao: e.target.value ? Number(e.target.value) : '' })}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                  <select
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                    value={form.categoria}
+                    onChange={e => setForm({ ...form, categoria: e.target.value })}
+                  >
+                    <option value="TIME">Time</option>
+                    <option value="JOGADOR">Jogador</option>
+                  </select>
+                </div>
 
                 <div className="pt-2 flex flex-col gap-2">
                   <button
@@ -261,7 +275,7 @@ export default function AdminCampeoesPage() {
                       className="w-full bg-white text-slate-600 border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-bold hover:bg-slate-50 transition-colors"
                       onClick={() => {
                         setEditingId(null);
-                        setForm({ nome: '', dataLimite: '', pontuacao: '' });
+                        setForm({ nome: '', dataLimite: '', pontuacao: '', categoria: 'TIME' });
                       }}
                     >
                       Cancelar Edição
@@ -304,6 +318,7 @@ export default function AdminCampeoesPage() {
                             nome: c.nome,
                             dataLimite: formatDateTimeLocal(c.dataLimite),
                             pontuacao: c.pontuacao ?? '',
+                            categoria: c.categoria ?? 'TIME',
                           });
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
@@ -335,7 +350,9 @@ export default function AdminCampeoesPage() {
                         onChange={e => setTempResults(prev => ({ ...prev, [c.id]: e.target.value }))}
                       >
                         <option value="">Aguardando definição...</option>
-                        {times.map(t => (
+                        {times
+                          .filter(t => !c.categoria || (t.categoria && t.categoria.includes(c.categoria)))
+                          .map(t => (
                           <option key={t.id} value={t.id}>
                             {t.nome}
                           </option>
@@ -384,7 +401,9 @@ export default function AdminCampeoesPage() {
                                 onChange={e => atualizarPalpiteAdmin(p.id, c.id, e.target.value)}
                               >
                                 <option value="">Sem palpite</option>
-                                {times.map(t => (
+                                {times
+                                  .filter(t => !c.categoria || (t.categoria && t.categoria.includes(c.categoria)))
+                                  .map(t => (
                                   <option key={t.id} value={t.id}>{t.nome}</option>
                                 ))}
                               </select>

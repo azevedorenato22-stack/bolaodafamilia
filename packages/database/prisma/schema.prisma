@@ -359,6 +359,7 @@ model Campeao {
   descricao        String?   @db.Text
   dataLimite       DateTime  @map("data_limite") @db.Timestamptz(3)
   resultadoFinalId String?   @map("resultado_final_id") @db.Uuid // Time vencedor
+  categoria        String    @default("TIME") @db.VarChar(50) // TIME, JOGADOR, etc.
   
   // Pontuação personalizada (se diferente do padrão do bolão)
   pontuacao        Int?      @db.SmallInt

@@ -200,7 +200,9 @@ export default function CampeoesPage() {
                     onChange={e => salvarPalpite(c.id, e.target.value)}
                   >
                     <option value="">Selecione um time</option>
-                    {times.map((t: any) => (
+                    {times
+                      .filter(t => !c.categoria || (t.categoria && t.categoria.includes(c.categoria)))
+                      .map((t: any) => (
                       <option key={t.id} value={t.id}>
                         {t.nome}
                       </option>

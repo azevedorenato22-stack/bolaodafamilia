@@ -117,6 +117,7 @@ export class CampeoesService {
         descricao: dto.descricao,
         dataLimite: dataLimite!,
         pontuacao: dto.pontuacao,
+        categoria: dto.categoria ?? "TIME",
       },
     });
   }
@@ -227,6 +228,7 @@ export class CampeoesService {
         pontuacao: dto.pontuacao ?? campeao.pontuacao,
         resultadoFinalId,
         definidoEm,
+        categoria: dto.categoria ?? campeao.categoria,
       },
     });
 

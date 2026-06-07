@@ -29,4 +29,9 @@ export class CreateCampeaoDto {
   @IsInt()
   @Min(1)
   pontuacao?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  categoria?: string;
 }
