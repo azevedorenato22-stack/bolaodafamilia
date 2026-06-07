@@ -34,6 +34,12 @@ export default function CampeoesPage() {
   const sortTimesByNome = (items: any[]) =>
     [...items].sort((a: any, b: any) => (a?.nome ?? '').localeCompare(b?.nome ?? '', 'pt-BR'));
 
+  const itemTemCategoria = (item: any, categoria: string) =>
+    !categoria || String(item?.categoria ?? '')
+      .split(',')
+      .map(cat => cat.trim())
+      .includes(categoria);
+
   const load = async (bolao: string, selectedBolao?: any) => {
     setLoading(true);
     setErro(null);
@@ -199,9 +205,9 @@ export default function CampeoesPage() {
                     value={selectedTimeId}
                     onChange={e => salvarPalpite(c.id, e.target.value)}
                   >
-                    <option value="">Selecione um time</option>
+                    <option value="">Selecione uma opção</option>
                     {times
-                      .filter(t => !c.categoria || (t.categoria && t.categoria.includes(c.categoria)))
+                      .filter(t => itemTemCategoria(t, c.categoria))
                       .map((t: any) => (
                       <option key={t.id} value={t.id}>
                         {t.nome}

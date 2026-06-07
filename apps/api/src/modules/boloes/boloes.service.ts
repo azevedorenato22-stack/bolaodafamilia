@@ -30,7 +30,15 @@ export class BoloesService {
             select: {
               id: true,
               nome: true,
+              categoria: true,
               escudoUrl: true,
+              categorias: {
+                select: {
+                  categoria: {
+                    select: { nome: true },
+                  },
+                },
+              },
             },
           },
         },
@@ -212,9 +220,19 @@ export class BoloesService {
   private mapBolaoResponse(bolao: any) {
     return {
       ...bolao,
-      times: bolao.times?.map((bt: any) => bt.time) || [],
+      times: bolao.times?.map((bt: any) => this.mapTimeResponse(bt.time)) || [],
       rodadas: bolao.rodadas?.map((br: any) => br.rodada) || [],
       participantes: bolao.participantes?.map((bu: any) => bu.usuario) || [],
+    };
+  }
+
+  private mapTimeResponse(time: any) {
+    if (!time) return time;
+    const categorias = time.categorias?.map((c: any) => c.categoria.nome) ?? [];
+
+    return {
+      ...time,
+      categoria: categorias.length ? categorias.join(', ') : time.categoria,
     };
   }
 

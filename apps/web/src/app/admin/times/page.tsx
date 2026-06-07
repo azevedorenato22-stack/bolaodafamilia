@@ -101,9 +101,15 @@ export default function AdminTimesPage() {
     }
   };
 
+  const itemTemCategoria = (item: any, categoria: string) =>
+    String(item?.categoria ?? '')
+      .split(',')
+      .map(cat => cat.trim())
+      .includes(categoria);
+
   // Filtragem local
   const timesFiltrados = times
-    .filter(t => filtroCategoria === 'Todas' || (t.categoria && t.categoria.includes(filtroCategoria))) // t.categoria é string "A, B"
+    .filter(t => filtroCategoria === 'Todas' || itemTemCategoria(t, filtroCategoria))
     .sort((a, b) => a.nome.localeCompare(b.nome));
 
   // Extrair categorias para o filtro (pode usar todasCategorias ou extrair dos times)
@@ -114,8 +120,8 @@ export default function AdminTimesPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Times</h1>
-        <p className="text-sm text-gray-600">Cadastro global de times.</p>
+        <h1 className="text-2xl font-semibold text-gray-900">Times / Opções</h1>
+        <p className="text-sm text-gray-600">Cadastro global das opções usadas em jogos, bolões e campeões.</p>
       </div>
       {sucesso && <p className="text-sm text-green-700">{sucesso}</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
@@ -176,7 +182,7 @@ export default function AdminTimesPage() {
             <div className="mt-2 flex gap-2">
               <input
                 className="flex-1 border rounded-lg px-3 py-1.5 text-sm"
-                placeholder="Nova categoria..."
+                placeholder="Nova categoria, ex: FASE..."
                 value={novaCategoria}
                 onChange={e => setNovaCategoria(e.target.value)}
               />
@@ -214,7 +220,7 @@ export default function AdminTimesPage() {
           className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isSaving}
         >
-          {isSaving ? 'Salvando...' : editingId ? 'Atualizar time' : 'Criar time'}
+          {isSaving ? 'Salvando...' : editingId ? 'Atualizar opção' : 'Criar opção'}
         </button>
         {editingId && (
           <button
@@ -234,7 +240,7 @@ export default function AdminTimesPage() {
 
       <div className="border border-gray-200 rounded-xl bg-white shadow-sm">
         <div className="p-4 text-sm font-semibold text-gray-700 border-b flex items-center justify-between">
-          <span>Times</span>
+          <span>Times / Opções</span>
           <div className="flex items-center gap-2 text-sm text-gray-700">
             <label>Filtro:</label>
             <select

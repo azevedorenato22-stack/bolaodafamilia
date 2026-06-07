@@ -85,15 +85,38 @@ export class CampeoesService {
     });
   }
 
-  private async ensureTimeBelongsToBolao(timeId: string, bolaoId: string) {
+  private async ensureTimeBelongsToBolao(
+    timeId: string,
+    bolaoId: string,
+    categoria?: string | null,
+  ) {
     const exists = await this.prisma.bolaoTime.findFirst({
       where: { bolaoId, timeId },
+      include: {
+        time: {
+          include: {
+            categorias: { include: { categoria: true } },
+          },
+        },
+      },
     });
 
     if (!exists) {
       throw new BadRequestException(
         "O time precisa estar vinculado ao bolão para ser escolhido",
       );
+    }
+
+    if (categoria) {
+      const categorias = exists.time.categorias.length
+        ? exists.time.categorias.map((c) => c.categoria.nome)
+        : [exists.time.categoria];
+
+      if (!categorias.includes(categoria)) {
+        throw new BadRequestException(
+          `A opção escolhida precisa pertencer à categoria "${categoria}"`,
+        );
+      }
     }
   }
 
@@ -196,7 +219,8 @@ export class CampeoesService {
       movingDeadlineToFuture && !hasResultado && !!campeao.resultadoFinalId;
 
     if (hasResultado && dto.resultadoFinalId) {
-      await this.ensureTimeBelongsToBolao(dto.resultadoFinalId, bolaoId);
+      const categoria = dto.categoria ?? campeao.categoria;
+      await this.ensureTimeBelongsToBolao(dto.resultadoFinalId, bolaoId, categoria);
     }
 
     let resultadoFinalId = campeao.resultadoFinalId;
@@ -275,7 +299,7 @@ export class CampeoesService {
     if (!campeao) throw new NotFoundException("Campeão não encontrado");
 
     this.assertPrazo(campeao.dataLimite, user);
-    await this.ensureTimeBelongsToBolao(dto.timeId, campeao.bolaoId);
+    await this.ensureTimeBelongsToBolao(dto.timeId, campeao.bolaoId, campeao.categoria);
 
     const existing = await this.prisma.palpiteCampeao.findUnique({
       where: {
@@ -332,7 +356,7 @@ export class CampeoesService {
     }
 
     const targetTimeId = dto.timeId ?? palpite.timeEscolhidoId;
-    await this.ensureTimeBelongsToBolao(targetTimeId, campeao.bolaoId);
+    await this.ensureTimeBelongsToBolao(targetTimeId, campeao.bolaoId, campeao.categoria);
 
     if (
       targetCampeaoId !== palpite.campeaoId ||
