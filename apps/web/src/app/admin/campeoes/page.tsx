@@ -11,7 +11,7 @@ import {
   excluirCampeao,
   atualizarPalpiteCampeaoAdmin,
 } from '../../../services/campeoes.service';
-import { listarCategorias } from '../../../services/times.service';
+import { listarCategorias, listarTimes } from '../../../services/times.service';
 import { ConfirmModal } from '../../../components/confirm-modal';
 
 export default function AdminCampeoesPage() {
@@ -20,6 +20,7 @@ export default function AdminCampeoesPage() {
   const [bolaoId, setBolaoId] = useState('');
   const [campeoes, setCampeoes] = useState<any[]>([]);
   const [times, setTimes] = useState<any[]>([]);
+  const [opcoesGlobais, setOpcoesGlobais] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<string[]>([]);
   const [form, setForm] = useState({
     nome: '',
@@ -58,6 +59,11 @@ export default function AdminCampeoesPage() {
       .map(cat => cat.trim())
       .includes(categoria);
 
+  const opcoesPorCategoria = (categoria: string) => {
+    const base = categoria === 'TIME' ? times : opcoesGlobais;
+    return base.filter(item => itemTemCategoria(item, categoria));
+  };
+
   const load = async (id: string, bolaoSelecionado?: any) => {
     if (!id) return;
     setErro(null);
@@ -86,11 +92,12 @@ export default function AdminCampeoesPage() {
   };
 
   useEffect(() => {
-    Promise.all([listarBoloesAdmin(), listarCategorias()])
-      .then(([b, cats]) => {
+    Promise.all([listarBoloesAdmin(), listarCategorias(), listarTimes()])
+      .then(([b, cats, opcoes]) => {
         const ativos = b.filter((bolao: any) => bolao.ativo);
         setBoloes(ativos);
         setCategorias(cats);
+        setOpcoesGlobais(opcoes);
         setForm(prev => cats.length && !cats.includes(prev.categoria)
           ? { ...prev, categoria: cats[0] }
           : prev
@@ -364,8 +371,7 @@ export default function AdminCampeoesPage() {
                         onChange={e => setTempResults(prev => ({ ...prev, [c.id]: e.target.value }))}
                       >
                         <option value="">Aguardando definição...</option>
-                        {times
-                          .filter(t => itemTemCategoria(t, c.categoria))
+                        {opcoesPorCategoria(c.categoria)
                           .map(t => (
                           <option key={t.id} value={t.id}>
                             {t.nome}
@@ -415,8 +421,7 @@ export default function AdminCampeoesPage() {
                                 onChange={e => atualizarPalpiteAdmin(p.id, c.id, e.target.value)}
                               >
                                 <option value="">Sem palpite</option>
-                                {times
-                                  .filter(t => itemTemCategoria(t, c.categoria))
+                                {opcoesPorCategoria(c.categoria)
                                   .map(t => (
                                   <option key={t.id} value={t.id}>{t.nome}</option>
                                 ))}

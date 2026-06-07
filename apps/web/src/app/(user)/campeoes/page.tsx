@@ -10,6 +10,7 @@ import {
   atualizarPalpiteCampeao,
 } from '../../../services/campeoes.service';
 import { listarMeusBoloes } from '../../../services/boloes.service';
+import { listarTimes } from '../../../services/times.service';
 
 type PalpiteCampeao = {
   id: string;
@@ -28,6 +29,7 @@ export default function CampeoesPage() {
   const [bolaoId, setBolaoId] = useState('');
   const [campeoes, setCampeoes] = useState<any[]>([]);
   const [times, setTimes] = useState<any[]>([]);
+  const [opcoesGlobais, setOpcoesGlobais] = useState<any[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -39,6 +41,11 @@ export default function CampeoesPage() {
       .split(',')
       .map(cat => cat.trim())
       .includes(categoria);
+
+  const opcoesPorCategoria = (categoria: string) => {
+    const base = categoria === 'TIME' ? times : opcoesGlobais;
+    return base.filter(item => itemTemCategoria(item, categoria));
+  };
 
   const load = async (bolao: string, selectedBolao?: any) => {
     setLoading(true);
@@ -72,10 +79,11 @@ export default function CampeoesPage() {
   };
 
   useEffect(() => {
-    listarMeusBoloes()
-      .then(b => {
+    Promise.all([listarMeusBoloes(), listarTimes()])
+      .then(([b, opcoes]) => {
         const lista = b ?? [];
         setBoloes(lista);
+        setOpcoesGlobais(opcoes ?? []);
         if (lista[0]) {
           setBolaoId(lista[0].id);
           const bolaoTimes = lista[0].times ?? [];
@@ -206,8 +214,7 @@ export default function CampeoesPage() {
                     onChange={e => salvarPalpite(c.id, e.target.value)}
                   >
                     <option value="">Selecione uma opção</option>
-                    {times
-                      .filter(t => itemTemCategoria(t, c.categoria))
+                    {opcoesPorCategoria(c.categoria)
                       .map((t: any) => (
                       <option key={t.id} value={t.id}>
                         {t.nome}

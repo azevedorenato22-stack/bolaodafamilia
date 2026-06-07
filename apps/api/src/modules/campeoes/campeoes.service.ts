@@ -90,6 +90,11 @@ export class CampeoesService {
     bolaoId: string,
     categoria?: string | null,
   ) {
+    if (categoria && categoria !== "TIME") {
+      await this.ensureTimeBelongsToCategoria(timeId, categoria);
+      return;
+    }
+
     const exists = await this.prisma.bolaoTime.findFirst({
       where: { bolaoId, timeId },
       include: {
@@ -117,6 +122,29 @@ export class CampeoesService {
           `A opção escolhida precisa pertencer à categoria "${categoria}"`,
         );
       }
+    }
+  }
+
+  private async ensureTimeBelongsToCategoria(timeId: string, categoria: string) {
+    const time = await this.prisma.time.findUnique({
+      where: { id: timeId },
+      include: {
+        categorias: { include: { categoria: true } },
+      },
+    });
+
+    if (!time) {
+      throw new BadRequestException("A opção escolhida não existe");
+    }
+
+    const categorias = time.categorias.length
+      ? time.categorias.map((c) => c.categoria.nome)
+      : [time.categoria];
+
+    if (!categorias.includes(categoria)) {
+      throw new BadRequestException(
+        `A opção escolhida precisa pertencer à categoria "${categoria}"`,
+      );
     }
   }
 
