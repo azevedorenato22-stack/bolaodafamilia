@@ -5,6 +5,7 @@
   "description": "Backend NestJS do Bolão do Chuveiro Ligado",
   "scripts": {
     "build": "nest build",
+    "vercel-build": "npx prisma migrate deploy --schema=../../packages/database/prisma/schema.prisma && nest build",
     "dev": "nest start --watch",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -49,6 +50,7 @@
     "eslint-plugin-prettier": "^5.0.0",
     "jest": "^29.5.0",
     "prettier": "^3.0.0",
+    "prisma": "^5.7.0",
     "source-map-support": "^0.5.21",
     "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.3",
